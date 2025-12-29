@@ -65,7 +65,7 @@
 
     <nav class="bg-white shadow-sm py-4">
         <div class="container mx-auto px-4 flex justify-between items-center">
-            <a href="/" class="text-2xl font-bold text-blue-600">RISC-V Books</a>
+            <a href="/" class="text-2xl font-bold text-blue-600">ChenLongOS</a>
             <div class="flex space-x-6">
                 <a href="/" class="text-gray-700 hover:text-blue-600">首页</a>
                 <a href="/blogs" class="text-blue-600 font-medium">博客</a>
@@ -139,7 +139,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
         <div>
           <a href="/" class="inline-block mb-4">
-            <span class="text-white text-2xl font-bold">RISCVBooks<span class="text-blue-400">资料中心</span></span>
+            <span class="text-white text-2xl font-bold">辰龙操作系统<span class="text-blue-400">资料中心</span></span>
           </a>
           <p class="text-gray-400 mb-6">专注于操作系统开发的专业文档资源平台，助力开发者深入技术核心。</p>
           <div class="flex space-x-4">
