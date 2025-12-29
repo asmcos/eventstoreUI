@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { get_chapter } from '$lib/esclient';
+import { get_chapter_author,get_book_id } from '$lib/esclient';
  
 import {createRenderer} from "$lib/render";
 
@@ -13,18 +13,28 @@ const getChapterContent = (bookId: string, chapterId: string): Promise<string> =
       reject(new Error('获取章节内容超时'));
     }, 5000);
 
-    get_chapter(bookId, chapterId, async (message) => {
-      clearTimeout(timer); // 清除超时计时器
+    get_book_id(bookId,function(msg){
+
+      if (msg == "EOSE") return ;
       
-      if (message === "EOSE") {
-        resolve(""); // 结束信号，返回空内容
-      } else if (message?.data) {
- 
-        resolve(message.data); // 成功获取内容
-      } else {
-        reject(new Error('未找到章节内容'));
-      }
-    });
+      let author_pubkey = msg.user;
+
+      get_chapter_author(bookId, chapterId,author_pubkey ,async (message) => {
+          clearTimeout(timer); // 清除超时计时器
+          
+          if (message === "EOSE") {
+            resolve(""); // 结束信号，返回空内容
+          } else if (message?.data) {
+    
+            resolve(message.data); // 成功获取内容
+          } else {
+            reject(new Error('未找到章节内容'));
+          }
+      });
+
+    })
+
+
   });
 };
 

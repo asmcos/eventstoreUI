@@ -1,10 +1,13 @@
 <script>
   import { onMount } from 'svelte';
 
-  import {uploadpath} from "$lib/config";
+  import {uploadpath,siteConfig} from "$lib/config";
   import {get_books,get_blogs,get_users_profile} from "$lib/esclient";
   import Carousel from "$lib/Carousel.svelte";
  
+  import Header from "$lib/header.svelte";
+  import Footer from "$lib/footer.svelte";
+
   export let data;
  
 
@@ -27,67 +30,23 @@
     }
     
  
-    onMount(async () => {
- 
- 
-    });
 
+
+  function getShortBookId(book) {
+    return `${book.user.substring(0, 8)}-${book.id.substring(0, 8)}`;
+  }
+
+  function getShortBlogId(blog) {
+    return `${blog.user.substring(0, 8)}-${blog.id.substring(0, 8)}`;
+  }
  
 
  
 
   onMount(() => {
     // 导航栏滚动效果
-    const navbar = document.getElementById('navbar');
-    window.addEventListener('scroll', () => {
-      if (window.scrollY > 10) {
-        navbar.classList.add('shadow-md', 'bg-gray-900/95');
-        navbar.classList.remove('bg-gray-900');
-      } else {
-        navbar.classList.remove('shadow-md', 'bg-gray-900/95');
-        navbar.classList.add('bg-gray-900');
-      }
-    });
 
-    // 移动端菜单切换
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    const mobileMenu = document.getElementById('mobile-menu');
-    mobileMenuBtn.addEventListener('click', () => {
-      mobileMenu.classList.toggle('hidden');
-    });
 
-    // 搜索模态框
-    const searchBtn = document.getElementById('search-btn');
-    const closeSearchBtn = document.getElementById('close-search-btn');
-    const searchModal = document.getElementById('search-modal');
-    const searchModalContent = document.getElementById('search-modal-content');
-
-    searchBtn.addEventListener('click', () => {
-      searchModal.classList.remove('hidden');
-      setTimeout(() => {
-        searchModalContent.classList.remove('scale-95', 'opacity-0');
-        searchModalContent.classList.add('scale-100', 'opacity-100');
-      }, 10);
-    });
-
-    closeSearchBtn.addEventListener('click', () => {
-      searchModalContent.classList.remove('scale-100', 'opacity-100');
-      searchModalContent.classList.add('scale-95', 'opacity-0');
-      setTimeout(() => {
-        searchModal.classList.add('hidden');
-      }, 300);
-    });
-
-    // 点击模态框外部关闭
-    searchModal.addEventListener('click', (e) => {
-      if (e.target === searchModal) {
-        searchModalContent.classList.remove('scale-100', 'opacity-100');
-        searchModalContent.classList.add('scale-95', 'opacity-0');
-        setTimeout(() => {
-          searchModal.classList.add('hidden');
-        }, 300);
-      }
-    });
 
     // 平滑滚动
 
@@ -96,20 +55,7 @@
   });
 </script>
 
-<style>
-.logo-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    margin: 0;
-    line-height: 1;
-    text-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
-    letter-spacing: -0.5px;
-}
-</style>
+
 
 
 <svelte:head>
@@ -118,74 +64,8 @@
 
 <main class="font-inter bg-gray-50 text-gray-900 antialiased">
   <!-- 导航栏 -->
-  <header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 bg-gray-900">
-    <div class="border-b border-gray-800">
-      <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <!-- Logo -->
-          <div class="flex items-center">
-            <a href="https://docs.chenlongos.cn" class="flex items-center">
-              <span class="logo-title ">辰龙文档中心</span>
-            </a>
-          </div>
+  <Header />
 
-          <!-- 导航链接 - 桌面版 -->
-          <nav class="hidden md:flex space-x-8">
-            <a href="https://docs.chenlongos.cn" class="text-gray-300 hover:text-white font-medium transition-colors duration-200">首页</a>
-            <a href="#books" class="text-gray-300 hover:text-white font-medium transition-colors duration-200">技术书籍</a>
-            <a href="#blogs" class="text-gray-300 hover:text-white font-medium transition-colors duration-200">博客文章</a>
- 
-          </nav>
-
-          <!-- 右侧操作区 -->
-          <div class="flex items-center space-x-4">
-            <button id="search-btn" class="p-2 rounded-full hover:bg-gray-800 transition-colors duration-200">
-              <i class="fa fa-search text-gray-400"></i>
-            </button>
-            <button id="mobile-menu-btn" class="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors duration-200">
-              <i class="fa fa-bars"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 移动端菜单 -->
-    <div id="mobile-menu" class="hidden md:hidden bg-gray-800 border-b border-gray-700 shadow-lg">
-      <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-        <a href="#home" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 text-white transition-colors duration-200">首页</a>
-        <a href="#books" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 text-white transition-colors duration-200">技术书籍</a>
-        <a href="#blogs" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 text-white transition-colors duration-200">博客文章</a>
-  
-      </div>
-    </div>
-  </header>
-
-  <!-- 搜索模态框 -->
-  <div id="search-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-gray-800 rounded-xl w-full max-w-3xl p-6 shadow-xl transform transition-all duration-300 scale-95 opacity-0" id="search-modal-content">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-semibold text-white">技术资源搜索</h3>
-        <button id="close-search-btn" class="text-gray-400 hover:text-white transition-colors duration-200">
-          <i class="fa fa-times text-xl"></i>
-        </button>
-      </div>
-      <div class="relative">
-        <input type="text" placeholder="搜索系统编程、操作系统、Rust相关资源..." class="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200">
-        <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-      </div>
-      <div class="mt-6">
-        <h4 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">热门技术搜索</h4>
-        <div class="flex flex-wrap gap-2">
-          <span class="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm hover:bg-gray-600 cursor-pointer transition-colors duration-200">Rust系统编程</span>
-          <span class="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm hover:bg-gray-600 cursor-pointer transition-colors duration-200">Linux内核</span>
-          <span class="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm hover:bg-gray-600 cursor-pointer transition-colors duration-200">操作系统原理</span>
-          <span class="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm hover:bg-gray-600 cursor-pointer transition-colors duration-200">Rust异步编程</span>
-          <span class="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-sm hover:bg-gray-600 cursor-pointer transition-colors duration-200">内存安全</span>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- 主内容区 -->
   <main class="pt-16">
@@ -304,14 +184,15 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {#each displayedBooks as book}
-            <div class="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 flex flex-col" on:click={goTobook(book.id)}>
+            <div class="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 flex flex-col" on:click={goTobook(getShortBookId(book))}>
               <!-- 4:3比例图片 -->
               <div class="relative" style="padding-top: 100%;">  
                 <img src={uploadpath + book.data.coverImgurl} alt={book.data.title} class="absolute inset-0 w-full h-full object-cover">
               </div>
               <div class="p-5">
                 <h3 class="font-semibold text-lg mb-3">{book.data.title}</h3>
-                <a href="/viewbooks/{book.id}"></a>
+                <a href="/viewbooks/{getShortBookId(book)}"></a>
+
                 <div class="flex flex-wrap gap-2 mb-4">
                   {#each book.labels as label}
                     <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
@@ -465,7 +346,8 @@
                   <div class="flex-1">
                      
                     <h3 class="font-semibold text-lg mb-2 hover:text-blue-600 transition-colors duration-200">
-                      <a href="/viewblog?blogid={blog.id}">{blog.data.title}</a>
+                      <a href="/viewblog?blogid={getShortBlogId(blog)}">{blog.data.title}</a>
+
                     </h3>
                      <div class="flex items-center text-sm text-gray-500 mb-1">
                       <span class="flex items-center mr-3">
@@ -493,7 +375,8 @@
                     <span class="text-sm text-gray-700">{users_profile[blog.user].data.displayName}</span>
                   </div>
                   {/if}
-                  <a href="/viewblog?blogid={blog.id}" class="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center">
+                  <a href="/viewblog?blogid={getShortBlogId(blog)}" class="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center">
+
                     阅读全文
                     <i class="fa fa-angle-right ml-1"></i>
                   </a>
@@ -504,7 +387,7 @@
         </div>
 
         <div class="mt-12 text-center">
-          <a href="#" class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-900 font-medium rounded-lg hover:bg-gray-50 transition-all duration-200">
+          <a href="/blogs" class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-900 font-medium rounded-lg hover:bg-gray-50 transition-all duration-200">
             查看更多文章
             <i class="fa fa-arrow-right ml-2"></i>
           </a>
@@ -584,66 +467,5 @@
   </main>
 
   <!-- 页脚 -->
-  <footer class="bg-gray-900 text-white pt-16 pb-8">
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-        <div>
-          <a href="#" class="inline-block mb-4">
-            <span class="text-white text-2xl font-bold">辰龙<span class="text-blue-400">文档中心</span></span>
-          </a>
-          <p class="text-gray-400 mb-6">专注于系统编程、操作系统与Rust技术的专业文档资源平台，助力开发者深入技术核心。</p>
-          <div class="flex space-x-4">
- 
-          </div>
-        </div>
-        <div>
-          <h4 class="text-lg font-semibold mb-4">内容导航</h4>
-          <ul class="space-y-2">
-            <li><a href="#books" class="text-gray-400 hover:text-white transition-colors duration-200">技术书籍</a></li>
-            <li><a href="#blogs" class="text-gray-400 hover:text-white transition-colors duration-200">博客文章</a></li>
-            <li><a href="#topics" class="text-gray-400 hover:text-white transition-colors duration-200">专题领域</a></li>
-            <li><a href="#resources" class="text-gray-400 hover:text-white transition-colors duration-200">资源下载</a></li>
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">技术社区</a></li>
-          </ul>
-        </div>
-        <div>
-          <h4 class="text-lg font-semibold mb-4">技术领域</h4>
-          <ul class="space-y-2">
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">Rust系统编程</a></li>
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">Linux内核</a></li>
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">操作系统原理</a></li>
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">系统性能优化</a></li>
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">嵌入式开发</a></li>
-          </ul>
-        </div>
-        <div>
-          <h4 class="text-lg font-semibold mb-4">联系我们</h4>
-          <ul class="space-y-3">
-            <li class="flex items-start">
-              <i class="fa fa-envelope mt-1 mr-3 text-gray-400"></i>
-              <span class="text-gray-400">asmcos@akae.cn</span>
-            </li>
-            <li class="flex items-start">
-              <i class="fab fa-github mt-1 mr-3 text-gray-400"></i>
-              <span class="text-gray-400">https://github.com/chenlongos</span>
-            </li>
-            <li class="flex items-start">
-              <i class="fa fa-globe mt-1 mr-3 text-gray-400"></i>
-              <span class="text-gray-400">https://docs.chenlongos.cn</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-      <div class="border-t border-gray-800 pt-8">
-        <div class="flex flex-col md:flex-row justify-between items-center">
-          <p class="text-gray-400 text-sm mb-4 md:mb-0">© 2025 辰龙社区文档中心. 保留所有权利。</p>
-          <div class="flex space-x-6">
-            <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors duration-200">隐私政策</a>
-            <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors duration-200">使用条款</a>
-            <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors duration-200">内容声明</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </footer>
+  <Footer />
 </main>

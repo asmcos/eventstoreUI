@@ -264,14 +264,22 @@
     if (coverImageData) {
       try {
         const uploadResult = await new Promise(resolve => {
-          upload_file(`cover-${Date.now()}.png`, coverImageData, Keypub, Keypriv, resolve);
-        });
+          upload_file(`cover-${Date.now()}.png`, coverImageData, Keypub, Keypriv, (result) => {
+                  
+              const { code, fileUrl, taskId } = result[2];
+              if (code === 200) {
+                resolve(result);
+              } else if (code === 202) {
+                
+              } else {
+                reject(new Error("封面上传失败")); // 其他状态码直接reject
+              }
+            });
+        }); // Promise;
         if (uploadResult[2]?.code === 200) {
           blogData.coverUrl = uploadResult[2].fileUrl;
-        } else {
-          showNotification("封面上传失败", 2000, "error");
-          return;
-        }
+        }  
+
       } catch (error) {
         showNotification("封面处理出错", 2000, "error");
         return;

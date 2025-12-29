@@ -3,13 +3,22 @@
   import NestedTree from '$lib/NestedTree.svelte';
   import "$lib/editbook.css";
   
-  import {upload_file,
+  import {
+    get_user_by_email,
+    get_user_by_pubkeys,
+    upload_file,
     create_book,
     update_book,
     create_chapter,
     get_book_id,
-    get_chapter} from "$lib/esclient";
-  
+    get_chapter_update_logs,
+    get_event,
+    get_chapter_author} from "$lib/esclient";
+  import {    
+ 
+    epubEncode,
+    epubDecode,
+  } from "eventstore-tools/src/key";
   import {getKey} from "$lib/getkey";
   import {uploadpath} from "$lib/config";
 
@@ -25,6 +34,16 @@
   let bookAuthor = '';
   let coverImgurl='';
   let bookId = "";
+  let author_pubkey = "";
+ 
+  // 联合作者相关状态
+  let coAuthors = []; // 存储联合作者列表
+  let showAddCoAuthorInput = false; // 控制添加联合作者输入框
+  let newCoAuthor = ""; // 新联合作者输入值
+ 
+ 
+  let userEmailCache = new Map(); // 缓存用户公钥到邮箱的映射
+
  
   // 大纲的选中id号，用来显示大纲的样式渲染
   let globalClickId = null;
@@ -37,7 +56,6 @@
   let rawOutlineContent = '';
   let jsonFormatError = '';
   let codeMirrorEditor = null; // CodeMirror编辑器实例
-
 
   let showConfirmModal = false;
   let confirmMessage   = "";
@@ -59,7 +77,102 @@
   let showAddTagInput = false; // 控制添加标签输入框显示
   let newTagName = ""; // 新标签输入值  
 
+  // 当前激活的菜单项
+  let activeMenu = 'chapterEdit'; // 'bookInfo' 或 'chapterEdit'
+
+  let viewingHistoryChapter = null;
+  
+
+  function getTagValue(tags,t) {
+    const dTag = tags.find(tag => Array.isArray(tag) && tag[0] === t);
+    return dTag ? dTag[1] : null;
+  }
+
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  function isValidPubKey(pubKey) {
+    // epub 格式（32字节的十六进制数，bech32编码）
+    if (pubKey.startsWith('epub1')) {
+      return epubDecode(pubKey);
+    }
+    
+    // 十六进制格式的 PubKey（64个字符）
+    if (/^[0-9a-fA-F]{64}$/.test(pubKey)) {
+      return pubKey;
+    }
+    
+    return false;
+  }
+
+  
+
+  function shortenPubkey(pubkey) {
+    if (!pubkey) return "未知用户";
+    if (pubkey.length <= 16) return pubkey;
+    return pubkey.substring(0, 8) + '...' + pubkey.substring(pubkey.length - 8);
+  }
+
+ 
+
+  // 添加联合作者
+  function addCoAuthor() {
+    if (!newCoAuthor.trim()) return;
+    
+    let ret = 0;
+    function cb(e){
+
+      const exists = coAuthors.some(author => author.email === e.email);
+
+      if (exists) {
+        showNotification("该联合作者已存在", "error");
+        return;
+      }
+
+      if (e == "EOSE"){
+        if (ret == 0) showNotification("没找到用户", "error");
+
+        return ;
+      }
+
+      ret = 1;
+
+      coAuthors = [...coAuthors,  
+        {email:e.email,
+        pubkey:e.pubkey}
+      ];
+      // 重置输入
+      newCoAuthor = "";
+      showAddCoAuthorInput = false;
+      showNotification("联合作者添加成功");
+
+    }
+    if (isValidEmail(newCoAuthor)){
+      
+      get_user_by_email(newCoAuthor,cb);
+    
+    } else if (isValidPubKey(newCoAuthor)){
+
+      let pk = isValidPubKey(newCoAuthor);
+      get_user_by_pubkeys([pk],cb);
+
+    }else {
+      showNotification("请输入有效的邮箱地址或 PubKey ", "error");
+      return;
+    }
+    
+  }
+
+ 
+
+  let showing = false;
+
   function showNotification(message, type = 'success') {
+      if (showing) return;
+      showing = true;
+      
       const notification = document.createElement('div');
       const bgColor = type === 'error' ? 'bg-red-500' : type === 'warning' ? 'bg-amber-500' : 'bg-primary';
       notification.className = `fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 transform transition-all duration-300   opacity-0`;
@@ -70,6 +183,7 @@
       setTimeout(() => {
         notification.classList.add('translate-y-20', 'opacity-0');
         setTimeout(() => document.body.removeChild(notification), 300);
+        showing = false;
       }, 2000);
   }
 
@@ -93,7 +207,39 @@
     }
   }
 
- 
+  // 切换菜单
+  async function setActiveMenu(menu) {
+    if (isUnsaved) {
+      const userChoice = await new Promise((resolve) => {
+        savedMessage = `内容已经改变是否保存？\n`;
+        showSavedModal = true; // 显示模态框
+        savedCallback = function(result){
+          resolve(result);
+        }
+         
+      });
+      savedMessage = "";
+      showSavedModal = false;
+
+      // 根据用户选择处理不同逻辑
+      switch (userChoice) {
+        case 1: // 取消操作：不切换章节
+          return false; 
+        case 2: // 不保存：直接切换章节（放弃未保存内容）
+          
+          simplemde.value("");
+          isUnsaved = false; // 重置未保存状态
+
+          break; 
+        case 3: // 保存：先执行保存（异步操作），再切换章节
+          await saveCurrentChapter(); // 等待保存完成（假设saveCurrentContent返回Promise）
+          break;
+      }
+      
+    }
+
+    activeMenu = menu;
+  }
 
   async function handleSetClickId(item) {
     if (globalClickId == item.id) return true;
@@ -136,11 +282,12 @@
     console.log('选中章节:', item);
     currentEditId = item.id;
     currentChapterTitle = item.title;
+    setActiveMenu('chapterEdit');
   
     simplemde.value("");
      
     setTimeout(() => {  isUnsaved = false; }, 100);
-    get_chapter(bookId,item.id,function(message){
+    get_chapter_author(bookId,item.id,author_pubkey,function(message){
            if (message != "EOSE"){     
                  
             simplemde.value (message.data);
@@ -398,13 +545,15 @@
    
     function upload_info(message) {       
         if (message[2].code == 200){
-             
+            const pubkeys = coAuthors.map(a => a.pubkey); 
             let url = message[2].fileUrl;
             let bookInfo = {
                 coverImgurl :url,
                 title:bookTitle,
                 author:bookAuthor,
-                labels:bookLabels
+                labels:bookLabels,
+                coAuthors: pubkeys, // 添加联合作者
+                
             }
             if (bookId ){
               update_book(bookInfo,bookId,Keypub,Keypriv,function(msg){
@@ -419,6 +568,19 @@
                       confirmcallback = "";
                       showConfirmModal = false;
                     } 
+
+                    if (msg.code == 403){
+                      confirmMessage = msg.message;
+                      showConfirmModal = true; // 显示自定义模态框
+                      confirmcallback = function(result){
+                      if (result){
+                          window.location.reload();
+                      }
+                      confirmcallback = "";
+                      showConfirmModal = false;
+                    } 
+
+                    }
                   }
               })
             } else {
@@ -468,6 +630,10 @@
 
   function saveCurrentChapter(){
 
+    if (currentEditId == null){
+      showNotification("选择章节后编辑"); 
+      return;
+    }
 
     create_chapter(bookId,simplemde.value(),currentEditId,Keypub,Keypriv,function(message){
        if (message.code == 200){
@@ -561,6 +727,104 @@
       return Id; // 如果不存在会返回null
   }
 
+
+  let moveInbookCoverContainer = false;
+  let bookCoverContainer = null;
+
+  function handlebookCoverMouseEnter() {
+    moveInbookCoverContainer = true;
+  }
+
+  function handlebookCoverMouseLeave() {
+    moveInbookCoverContainer = false;
+  }
+
+     // 监听文件选择事件
+  function handleCoverFileSelect (e) {
+        // 检查是否选择了文件
+
+        const file = event.target.files[0];
+        if (!file) return;
+ 
+            // 检查是否为图片文件
+        if (file.type.indexOf('image') !== -1) {
+            // 读取文件并显示
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const imgUrl = e.target.result;
+                // 1. 提取Base64数据（去掉DataURL前缀）
+                const base64Data = imgUrl.split(',')[1];
+                
+                // 2. 将Base64转换为Uint8Array（浏览器环境中的二进制数组，可类比Node.js的Buffer）
+                const binaryString = window.atob(base64Data);
+                const len = binaryString.length;
+                const uint8Array = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    uint8Array[i] = binaryString.charCodeAt(i);
+                }
+                
+                // 3. 此时uint8Array与Node.js的Buffer类型兼容（都是二进制数据）
+                coverImgData = uint8Array;
+
+                if (bookCoverContainer == null ) {
+                  bookCoverContainer = document.getElementById('bookCoverContainer');
+                }
+
+                const bookCover = bookCoverContainer.querySelector('.book-cover');
+                
+                // 以相同方式显示图片
+                bookCover.style.backgroundImage = `url(${imgUrl})`;
+                bookCover.style.backgroundSize = 'cover';
+                bookCover.style.backgroundPosition = 'center';
+                bookCover.innerHTML = ''; // 清空原有文字
+                coverImgurl = "";
+                
+                // 显示提示
+                
+            };
+            
+            // 读取文件为DataURL
+            reader.readAsDataURL(file);
+        } else {
+            showNotification('请选择图片文件', 'error');
+        }
+        
+  };    
+
+
+
+
+  // 辅助函数：格式化时间戳
+  function formatTimestamp(timestamp) {
+    if (!timestamp) return "未知时间";
+    
+    const date = new Date(timestamp * 1000);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMins < 1) return "刚刚";
+    if (diffMins < 60) return `${diffMins} 分钟前`;
+    if (diffHours < 24) return `${diffHours} 小时前`;
+    if (diffDays < 7) return `${diffDays} 天前`;
+    
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+
+  // 辅助函数：截取事件ID显示
+  function shortenEventId(eventId) {
+    if (!eventId) return "";
+    return eventId.substring(0, 8) + "...";
+  }
+
+
   onMount(async () => {
     // 加载CodeMirror库
     let Key = getKey();
@@ -574,16 +838,45 @@
     
     bookId = getBookId();
     if (bookId) {
-       await get_book_id(bookId,function(message){
+       await get_book_id(bookId,async function(message){
         if (message != "EOSE"){
            
-          bookAuthor = message.data.author;
-          bookTitle = message.data.title;
-          coverImgurl = message.data.coverImgurl;
+          bookAuthor    = message.data.author;
+          bookTitle     = message.data.title;
+          coverImgurl   = message.data.coverImgurl;
+          author_pubkey = message.user;
+
           if (message.data.labels){
             bookLabels  = message.data.labels;
           }
             
+          // 加载联合作者数据
+          if (message.data.coAuthors) {
+                function cb_user(e){
+
+                  if (e == "EOSE"){
+                  
+                    return ;
+                  }
+
+                  const exists = coAuthors.some(author => author.email === e.email);
+
+                  if (exists) {
+                    
+                    return;
+                  }
+
+                  coAuthors = [...coAuthors,  
+                    {email:e.email,
+                    pubkey:e.pubkey}
+                  ];
+                }
+
+            get_user_by_pubkeys(message.data.coAuthors,cb_user);
+
+             
+          }
+ 
 
           const bookCover = document.querySelector('.book-cover');
                       
@@ -592,17 +885,22 @@
           bookCover.style.backgroundSize = 'cover';
           bookCover.style.backgroundPosition = 'center';
           bookCover.innerHTML = ''; // 清空原有文字
+
+          await get_chapter_author(bookId,"outline.md",author_pubkey,function(message){
+              if (message != "EOSE"){
+                
+                initialOutline = JSON.parse(message.data)
+                nextId = Math.max(...initialOutline.flatMap(item => [item.id, ...(item.children || []).map(child => child.id)])) + 1;
+              }
+          });
         }
        })
 
-       await get_chapter(bookId,"outline.md",function(message){
-           if (message != "EOSE"){
-             
-            initialOutline = JSON.parse(message.data)
-            nextId = Math.max(...initialOutline.flatMap(item => [item.id, ...(item.children || []).map(child => child.id)])) + 1;
-          }
-       });
+
+ 
     }
+
+
 
     await Promise.all([
       new Promise(resolve => {
@@ -689,6 +987,67 @@
                 className: 'fa fa-camera',
                 title: '上传图片'
             };
+
+
+      const uploadFileButton = {
+          name: 'uploadFile',
+          action: function (editor) {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.zip,.rar,.7z,.tgz,.mp3,.mp4';
+              input.multiple = false;
+              
+              input.addEventListener('change', async (event) => {
+                  const file = event.target.files[0];
+                  if (!file) return;
+                  
+                  // 显示简单的上传提示
+                  const cm = editor.codemirror;
+                  const cursor = cm.getCursor();
+                  cm.replaceRange(`[上传中...]`, cursor);
+                  
+                  // 创建文件读取器
+                  const reader = new FileReader();
+                  
+                  // 读取完成后处理
+                  reader.onload = function(e) {
+                      const arrayBuffer = e.target.result;
+                      const uint8Array = new Uint8Array(arrayBuffer);
+                      
+                      // 调用上传函数
+                      upload_file(file.name, uint8Array, Keypub, Keypriv, function(message) {
+                          // 移除上传提示
+                          cm.undo();
+                          if (message[2].code == 202){
+                             cm.replaceRange(`[上传中:${message[2].message}]`, cursor);
+                             return 
+                          }
+                          
+                          if (message[2].code == 200) {
+                              let url = message[2].fileUrl;
+                              const currentCursor = cm.getCursor();
+                              
+                              // 插入简单的Markdown链接
+                              const markdownText = `[${file.name}](${uploadpath + url})\n`;
+                              cm.replaceRange(markdownText, currentCursor);
+                          } else {
+                              // 简单的错误提示
+                              alert('上传失败: ' + (message[2].message || '未知错误'));
+                          }
+
+
+                      });
+                  };
+                  
+                  // 读取文件
+                  reader.readAsArrayBuffer(file);
+              });
+              
+              input.click();
+          },
+          className: 'fa fa-upload',
+          title: '上传文件'
+      };      
       
       const simplemde = new SimpleMDE({ 
         element: editorElement,
@@ -696,7 +1055,7 @@
         status: false,
 
         toolbar: ["bold", "italic", "heading", "|", "code", "quote", "unordered-list", "ordered-list", "|", 
-        "link", "image", "|", "preview", "side-by-side", "fullscreen", "|", "guide", insertImageButton, '|',],
+        "link", "image", "|", "preview", "side-by-side", "fullscreen", "|", "guide", insertImageButton, '|',uploadFileButton,],
         // 添加编辑器高度配置（部分主题可能需要）
         autosize: false,
       });
@@ -716,6 +1075,10 @@
            
           updateStats();
           
+        } else {
+             
+          showNotification("选择章节后编辑"); 
+     
         }
          
       });
@@ -727,16 +1090,7 @@
 
 
 
-    function findChapter(id, items = initialOutline) {
-      for (const item of items) {
-        if (item.id === id) return item;
-        if (item.children) {
-          const found = findChapter(id, item.children);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
+
 
     function updateWordCount(simplemde) {
       const wordCountEl = document.getElementById('wordCount');
@@ -768,20 +1122,7 @@
     });
 
 
-    let moveInbookCoverContainer = false;
-    const bookCoverContainer = document.getElementById('bookCoverContainer');
-    bookCoverContainer.addEventListener('mouseenter', function() {
-         
-        moveInbookCoverContainer = true;
-           
-    });
-
-    // 鼠标离开容器时触发
-    bookCoverContainer.addEventListener('mouseleave', function() {    
-         
-        moveInbookCoverContainer = false;
-    });
-        
+ 
     
     const handleMDEPaste = async (event) => {
         if (!simplemde || !simplemde.codemirror.hasFocus()) {
@@ -849,6 +1190,11 @@
                         const blob = items[i].getAsFile();
                         // 处理图片 - 这里示例是显示在封面区域
                         const imgUrl = URL.createObjectURL(blob);
+                        if (bookCoverContainer == null ) {
+                          bookCoverContainer = document.getElementById('bookCoverContainer');
+                        }
+    
+
                         const bookCover = bookCoverContainer.querySelector('.book-cover');
                         bookCover.style.backgroundImage = `url(${imgUrl})`;
                         bookCover.style.backgroundSize = 'cover';
@@ -881,72 +1227,43 @@
                 }
             }
         }
+  
     });
 
-    const fileInput = document.getElementById('coverInputfile');
-    
-
-    // 监听文件选择事件
-    fileInput.addEventListener('change', function(e) {
-        // 检查是否选择了文件
-        if (this.files && this.files[0]) {
-            const file = this.files[0];
-            
-            // 检查是否为图片文件
-            if (file.type.indexOf('image') !== -1) {
-                // 读取文件并显示
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    const imgUrl = e.target.result;
-                    // 1. 提取Base64数据（去掉DataURL前缀）
-                    const base64Data = imgUrl.split(',')[1];
-                    
-                    // 2. 将Base64转换为Uint8Array（浏览器环境中的二进制数组，可类比Node.js的Buffer）
-                    const binaryString = window.atob(base64Data);
-                    const len = binaryString.length;
-                    const uint8Array = new Uint8Array(len);
-                    for (let i = 0; i < len; i++) {
-                        uint8Array[i] = binaryString.charCodeAt(i);
-                    }
-                    
-                    // 3. 此时uint8Array与Node.js的Buffer类型兼容（都是二进制数据）
-                    coverImgData = uint8Array;
-
-                    const bookCover = bookCoverContainer.querySelector('.book-cover');
-                    
-                    // 以相同方式显示图片
-                    bookCover.style.backgroundImage = `url(${imgUrl})`;
-                    bookCover.style.backgroundSize = 'cover';
-                    bookCover.style.backgroundPosition = 'center';
-                    bookCover.innerHTML = ''; // 清空原有文字
-                    coverImgurl = "";
-                    
-                    // 显示提示
-                    showNotification('已上传图片作为封面');
-                };
-                
-                // 读取文件为DataURL
-                reader.readAsDataURL(file);
-            } else {
-                showNotification('请选择图片文件', 'error');
-            }
-        }
-    });
-
-    // 可选：重置文件输入，允许重复选择同一文件
-    fileInput.addEventListener('click', function() {
-        this.value = '';
-    });
-
+ 
     // 清理函数
     return () => {
       destroyCodeMirrorEditor();
     };
 
 
+
+
   }); //onMount
 
+  function findChapter(id, items = initialOutline) {
+    for (const item of items) {
+      if (item.id === id) return item;
+      if (item.children) {
+        const found = findChapter(id, item.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  async function fetchUpdateLogs() {
+      
+      if (!bookId) {
+        showNotification("请先完善书籍信息!", "warning");
+        return;
+      }
+      window.location.href = `/editbook/revisions?bookid=`+bookId;
+      
+  
+    }
+
+ 
   // 当模态框关闭时销毁编辑器
   $: if (!showRawOutlineModal && codeMirrorEditor) {
     destroyCodeMirrorEditor();
@@ -955,157 +1272,156 @@
 
 <style>
   :global {
-    
+    .coauthors-container {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .coauthor-item {
+      transition: all 0.2s ease;
+    }
+
+    .coauthor-item:hover {
+      background-color: #f8fafc;
+    }
+
+    .add-coauthor-btn:hover {
+      border-color: #6366f1;
+      color: #6366f1;
+    }
+
+    /* 左侧菜单样式 */
+    .left-menu-item {
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+
+    .left-menu-item:hover {
+      background-color: #f8fafc;
+    }
+
+    .left-menu-item.active {
+      background-color: #eef2ff;
+      border-left-color: #6366f1;
+      color: #6366f1;
+    }
+
+    /* 右侧内容区域样式 */
+    .content-panel {
+      transition: all 0.3s ease;
+    }
+
+      
+  .history-view-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .merge-button {
+    background-color: #10b981;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .merge-button:hover {
+    background-color: #059669;
+  }
+  
+  .exit-history-button {
+    background-color: #6b7280;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .exit-history-button:hover {
+    background-color: #4b5563;
+  }
+
   }
 </style>
 
 <svelte:head>
-    <title>esbook - 创作书籍</title>
+    <title>RISCVBooks - 创作书籍</title>
 </svelte:head>
-
 
 <main class="flex-grow flex flex-col max-w-7xl mx-auto px-4 py-6 w-full">
   <div class="seamless-container flex-grow">
-    <!-- 左侧面板 - 大纲和封面 -->
-    <div class="left-seamless flex flex-col">
-      <!-- 书籍封面 -->
-      <!-- 书籍信息区域（修改后） -->
-      <div class="p-5 border-b border-gray-200 overflow-y-auto ">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold text-primary flex items-center" on:click={togglecover}>
-            <i class="fa fa-image mr-2"></i>书籍信息
-          </h2>
-          <button class="toggle-btn" on:click={togglecover}> 
-            <i class="fa fa-chevron-{coverdir}"></i>
-          </button>
-        </div>
-        
-        <div class="flex flex-col items-center {hiddencover}" >
-          <!-- 1. 封面预览区域（顶部视觉焦点） -->
-          <div class="w-full max-w-xs h-64 mb-6" id="bookCoverContainer">
-            <div class="book-cover bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl w-full max-w-xs h-64 flex flex-col items-center justify-center text-white p-6 text-center shadow-xl" >
-              <h3 class="text-2xl font-bold mb-2">点击上传封面</h3>
-              <p class="text-lg opacity-90">或者鼠标点击此处后</p>
-              <p class="mt-4 font-medium">粘贴截图</p>
+    <!-- 左侧面板 - 菜单导航 + 大纲 -->
+    <div class="left-seamless flex flex-col w-80 bg-white rounded-lg shadow-sm border border-gray-200">
+      <!-- 主导航菜单 -->
+      <div class="p-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-800 mb-3">创作中心</h2>
+        <div class="space-y-2">
+          <div 
+            class="left-menu-item p-3 rounded-lg flex items-center {activeMenu === 'bookInfo' ? 'active' : ''}"
+            on:click={() => setActiveMenu('bookInfo')}
+          >
+            <i class="fa fa-book mr-3 text-lg"></i>
+            <div>
+              <div class="font-medium">书籍信息</div>
+              <div class="text-xs text-gray-500 mt-1">设置书名、作者、封面等</div>
             </div>
-          </div>  
-          
-          <!-- 2. 封面上传按钮（紧跟封面预览下方） -->
-          <div class="w-full max-w-xs mb-6">
-            <label class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2.5 rounded-lg cursor-pointer transition flex items-center justify-center btn-hover text-sm">
-              <i class="fa fa-upload mr-2"></i>上传封面图片
-              <input type="file" class="hidden" id="coverInputfile">
-            </label>
           </div>
-
-          <!-- 3. 核心信息表单（标题、作者、标签） -->
-          <div class="space-y-5 w-full max-w-xs form-group book-info-form">
-            <!-- 书籍标题 -->
-            <div>
-              <label class="block text-sm font-medium mb-1">书籍标题 <span class="text-red-500">*</span></label>
-              <input type="text" placeholder="输入书籍标题" bind:value={bookTitle} class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent form-control">
-            </div>
-
-            <!-- 作者 -->
-            <div>
-              <label class="block text-sm font-medium mb-1">作者 <span class="text-red-500">*</span></label>
-              <input type="text" placeholder="作者姓名" bind:value={bookAuthor} class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent form-control">
-            </div>
           
-            <!-- 书籍标签 -->
-            <div>
-              <label class="block text-sm font-medium mb-1">书籍标签</label>
-              <div class="categories">
-                <!-- 已添加标签 -->
-                {#each bookLabels.slice(0, 5) as tag, index}
-                  <span class="px-3 py-1 rounded-full text-sm flex items-center {colorPool[index % colorPool.length].bgClass} {colorPool[index % colorPool.length].textClass}">
-                    {tag}
-                    <button 
-                      class="tag-remove-btn"
-                      on:click={(e) => {
-                        e.stopPropagation();
-                        bookLabels = bookLabels.filter((_, i) => i !== index);
-                      }}
-                    >
-                      <i class="fas fa-times"></i>
-                    </button>
-                  </span>
-                {/each}
-
-                <!-- 超出数量提示 -->
-                {#if bookLabels.length > 5}
-                  <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
-                    +{bookLabels.length - 5}
-                  </span>
-                {/if}
-
-                <!-- 添加标签按钮/输入框 -->
-                {#if !showAddTagInput}
-                  <button class="add-category" on:click={() => showAddTagInput = true}>
-                    <i class="fas fa-plus mr-1"></i> 添加标签
-                  </button>
-                {:else}
-                  <div class="tag-input-group">
-                    <input
-                      type="text"
-                      class="form-input tag-input" 
-                      placeholder="输入标签..."
-                      bind:value={newTagName}
-                      on:keydown={(e) => {
-                        if (e.key === 'Enter') addTag();
-                        if (e.key === 'Escape') showAddTagInput = false;
-                      }}
-                      autofocus
-                    >
-                    <button class="tag-btn bg-primary text-white" on:click={addTag}>确认</button>
-                    <button class="tag-btn bg-gray-100 text-gray-600" on:click={() => showAddTagInput = false}>取消</button>
-                  </div>
-                {/if}
+              <div 
+              class="left-menu-item p-3 rounded-lg flex items-center {activeMenu === 'updateLogs' ? 'active' : ''}"
+              on:click={() => {
+                setActiveMenu('updateLogs');
+                fetchUpdateLogs(); // 点击时加载更新日志
+              }}
+            >
+              <i class="fa fa-history mr-3 text-lg"></i>
+              <div>
+                <div class="font-medium">更新日志</div>
+                <div class="text-xs text-gray-500 mt-1">查看章节更新历史</div>
               </div>
             </div>
-          </div>
 
-          <!-- 4. 提交按钮（最底部，逻辑终点） -->
-          <div class="w-full max-w-xs mt-6">
-            <button class="w-full bg-violet-500 hover:bg-violet-700 text-white px-4 py-2.5 rounded-lg transition flex items-center justify-center btn-hover text-sm font-medium" on:click={submitBookInfo}>
-              <i class="fa fa-check-circle mr-2"></i>提交书籍信息
-            </button>
-          </div>
         </div>
       </div>
 
       <!-- 书籍大纲 -->
-      <div class="flex-grow p-5 overflow-y-auto custom-scroll">
-        <div class="flex justify-between items-center mb-5">
-          <h2 class="text-xl font-semibold text-primary flex items-center">
+      <div class="flex-grow p-4 overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-md font-semibold text-gray-700 flex items-center">
             <i class="fa fa-sitemap mr-2"></i>书籍大纲
-          </h2>
-          <div class="flex gap-2">
-
-          </div>
+          </h3>
         </div>
         
         <!-- 大纲操作按钮 -->
-        <div class="outline-actions-extra">
+        <div class="flex flex-wrap gap-2 mb-4">
           <button 
-            class="btn btn-secondary flex items-center" 
+            class="btn btn-secondary flex items-center text-xs py-2 px-3"
             on:click={openRawOutlineEditor}
           >
-            <i class="fa fa-code mr-2"></i>编辑大纲
+            <i class="fa fa-code mr-1"></i>编辑大纲
           </button>
           <button 
-            class="btn btn-primary flex items-center" 
+            class="btn btn-primary flex items-center text-xs py-2 px-3"
             on:click={submitOutline}
           >
-            <i class="fa fa-arrow-up mr-2"></i>上传大纲
+            <i class="fa fa-arrow-up mr-1"></i>更新大纲
           </button>
-
-            <button id="addFolder" class="folder-bg text-white rounded-lg w-9 h-9 flex items-center justify-center transition btn-hover " on:click={addFolder}>
-                <i class="fas fa-folder-plus"></i>
-            </button>
-            <button id="addChapter" class="bg-primary hover:bg-indigo-700 text-white rounded-lg w-9 h-9 flex items-center justify-center transition btn-hover " on:click={addChapter}>
-                <i class="fas fa-file-circle-plus"></i>
-            </button>
+          <button id="addFolder" class="folder-bg text-white rounded-lg w-8 h-8 flex items-center justify-center transition btn-hover text-xs" on:click={addFolder}>
+            <i class="fas fa-folder-plus"></i>
+          </button>
+          <button id="addChapter" class="bg-primary hover:bg-indigo-700 text-white rounded-lg w-8 h-8 flex items-center justify-center transition btn-hover text-xs" on:click={addChapter}>
+            <i class="fas fa-file-circle-plus"></i>
+          </button>
         </div>
         
         <NestedTree 
@@ -1128,9 +1444,180 @@
     <!-- 分隔线 -->
     <div class="w-0.5 bg-gray-200 cursor-col-resize hover:bg-gray-300"></div>
 
-    <!-- 右侧面板 - 内容编辑 -->
-    <div class="right-seamless flex flex-col">
-      <div class="editor-header">
+    <!-- 右侧面板 - 内容显示区域 -->
+    <div class="right-seamless flex flex-col  ">
+      <!-- 书籍信息编辑 -->
+    
+        <div class="content-panel flex-grow bg-white rounded-lg shadow p-6 overflow-y-auto" style:display={activeMenu === 'bookInfo' ? 'block' : 'none'}>
+          <div class="max-w-2xl mx-auto">
+         
+
+            <!-- 封面区域 -->
+            <div class="mb-8">
+              <h2 class="text-lg font-semibold mb-4 flex items-center">
+                <i class="fa fa-book  mr-2 text-primary"></i>
+                书籍封面
+              </h2>
+              <div class="flex flex-col items-center">
+                <div class="w-80 h-80 mb-4" id="bookCoverContainer"   on:mouseenter={handlebookCoverMouseEnter}
+                  on:mouseleave={handlebookCoverMouseLeave} >
+                  <div class="book-cover bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl w-full h-full flex flex-col items-center justify-center text-white p-6 text-center shadow-xl cursor-pointer">
+                    <h3 class="text-xl font-bold mb-2">点击上传封面</h3>
+                    <p class="text-md opacity-90">或者粘贴截图</p>
+                  </div>
+                </div>  
+                
+                <div class="w-80">
+                  <label class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2.5 rounded-lg cursor-pointer transition flex items-center justify-center btn-hover text-sm">
+                    <i class="fa fa-upload mr-2"></i>选择图片文件
+                    <input type="file" class="hidden" id="coverInputfile" on:change={handleCoverFileSelect}>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- 基本信息表单 -->
+            <div class="space-y-6">
+              <div>
+                <label class="block text-sm font-medium mb-2 text-gray-700">书籍标题 <span class="text-red-500">*</span></label>
+                <input type="text" placeholder="输入书籍标题" bind:value={bookTitle} class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent form-control text-sm">
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium mb-2 text-gray-700">作者 <span class="text-red-500">*</span></label>
+                <input type="text" placeholder="作者姓名" bind:value={bookAuthor} class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent form-control text-sm">
+              </div>
+
+              <!-- 联合作者 -->
+              <div>
+                <label class="block text-sm font-medium mb-2 text-gray-700">联合作者</label>
+                <div class="coauthors-container">
+                  <!-- 已添加的联合作者 -->
+                  {#each coAuthors as coAuthor, index}
+                    <div class="coauthor-item flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-lg">
+                      <span class="flex-1 text-sm font-medium">{coAuthor.email}</span>
+                      <button 
+                        class="text-red-500 hover:text-red-700 text-sm p-1 rounded transition"
+                        on:click={() => {
+                          coAuthors = coAuthors.filter((_, i) => i !== index);
+                          
+                        }}
+                      >
+                        <i class="fa fa-times"></i>
+                      </button>
+                    </div>
+                  {/each}
+
+                  <!-- 添加联合作者按钮/输入框 -->
+                  {#if !showAddCoAuthorInput}
+                    <button 
+                      class="add-coauthor-btn w-full text-center py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary hover:text-primary transition text-sm text-gray-600 font-medium"
+                      on:click={() => showAddCoAuthorInput = true}
+                    >
+                      <i class="fa fa-user-plus mr-2"></i> 添加联合作者
+                    </button>
+                  {:else}
+                  <div class="coauthor-input-group flex gap-2 items-stretch w-full">
+                    <div class="relative flex-1">
+                      <input
+                        type="text"
+                        class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs transition-colors"
+                        placeholder="输入联合作者邮箱或pubkey"
+                        bind:value={newCoAuthor}
+                        on:keydown={(e) => {
+                          if (e.key === 'Enter') addCoAuthor();
+                          if (e.key === 'Escape') showAddCoAuthorInput = false;
+                        }}
+                        autofocus
+                      >
+                      <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                        <i class="fa fa-user-plus text-gray-400 text-xs"></i>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      class="bg-blue-500 text-white w-8 h-8 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center"
+                      on:click={addCoAuthor}
+                      title="添加联合作者"
+                    >
+                      <i class="fa fa-check text-xs"></i>
+                    </button>
+                    
+                    <button 
+                      class="bg-gray-100 text-gray-600 w-8 h-8 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
+                      on:click={() => {
+                        showAddCoAuthorInput = false;
+                        newCoAuthor = "";
+                      }}
+                      title="取消添加"
+                    >
+                      <i class="fa fa-times text-xs"></i>
+                    </button>
+                  </div>
+                  {/if}
+                </div>
+              </div>
+            
+              <!-- 书籍标签 -->
+              <div>
+                <label class="block text-sm font-medium mb-2 text-gray-700">书籍标签</label>
+                <div class="categories flex flex-wrap gap-2">
+                  <!-- 已添加标签 -->
+                  {#each bookLabels as tag, index}
+                    <span class="px-3 py-2 rounded-full text-sm flex items-center {colorPool[index % colorPool.length].bgClass} {colorPool[index % colorPool.length].textClass} font-medium">
+                      {tag}
+                      <button 
+                        class="tag-remove-btn ml-2 hover:scale-110 transition"
+                        on:click={(e) => {
+                          e.stopPropagation();
+                          bookLabels = bookLabels.filter((_, i) => i !== index);
+                        }}
+                      >
+                        <i class="fas fa-times text-xs"></i>
+                      </button>
+                    </span>
+                  {/each}
+
+                  <!-- 添加标签按钮/输入框 -->
+                  {#if !showAddTagInput}
+                    <button class="add-category px-4 py-2 border-2 border-dashed border-gray-300 rounded-full hover:border-primary hover:text-primary transition text-sm text-gray-600 font-medium" on:click={() => showAddTagInput = true}>
+                      <i class="fas fa-plus mr-2"></i> 添加标签
+                    </button>
+                  {:else}
+                    <div class="tag-input-group flex gap-2 items-center w-full">
+                      <input
+                        type="text"
+                        class="form-input tag-input flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" 
+                        placeholder="输入标签..."
+                        bind:value={newTagName}
+                        on:keydown={(e) => {
+                          if (e.key === 'Enter') addTag();
+                          if (e.key === 'Escape') showAddTagInput = false;
+                        }}
+                        autofocus
+                      >
+                      <button class="tag-btn bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium" on:click={addTag}>确认</button>
+                      <button class="tag-btn bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-sm font-medium" on:click={() => showAddTagInput = false}>取消</button>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            </div>
+
+            <!-- 提交按钮 -->
+            <div class="mt-8 pt-6 border-t border-gray-200">
+              <button class="w-full bg-violet-500 hover:bg-violet-600 text-white px-4 py-3 rounded-lg transition flex items-center justify-center btn-hover text-sm font-medium shadow-md" on:click={submitBookInfo}>
+                <i class="fa fa-check-circle mr-2"></i>保存书籍信息
+              </button>
+            </div>
+          </div>
+        </div>
+      
+
+      <!-- 章节内容编辑 -->
+      
+ 
+      <div class="editor-header" style:display={activeMenu === 'chapterEdit' ? 'block' : 'none'}>
         <div class="flex justify-between items-center">
           <div>
             <h2 class="text-xl font-semibold flex items-center">
@@ -1144,7 +1631,7 @@
             </button>
             <button class="p-2 text-white hover:bg-white/20 rounded-lg transition" 
                     data-tooltip="保存为草稿">
-              <i class="fa fa-file-excel-o"></i>
+              <i class="fa fa-file-alt"></i>
             </button>
             <button class="p-2 text-white hover:bg-white/20 rounded-lg transition" 
                     data-tooltip="保存" on:click={saveCurrentChapter}>
@@ -1153,8 +1640,9 @@
           </div>
         </div>
       </div>
-      
-      <div class="flex-grow flex flex-col editor-wrapper">
+
+       
+      <div class="flex-grow flex flex-col editor-wrapper " style:display={activeMenu === 'chapterEdit' ? 'block' : 'none'}>
         <div class="bg-gray-50 p-3 flex items-center justify-between">
           <div class="flex items-center gap-4">
             <span id="wordCount" class="text-sm text-gray-600 flex items-center">
@@ -1168,12 +1656,24 @@
         </div>
         
         <!-- 编辑器区域 -->
-        <div id="editor-container" class="flex-grow p-4">
+        <div id="editor-container" class="flex-grow p-4" style="height:95%;" >
           <textarea id="editor"></textarea>
           
         </div>
         
       </div>
+          
+      <!-- 默认状态提示 -->
+      {#if activeMenu !== 'bookInfo' && activeMenu !== 'chapterEdit' && activeMenu !== 'updateLogs' }
+        <div class="content-panel flex-grow flex items-center justify-center bg-white rounded-lg shadow">
+          <div class="text-center text-gray-500">
+            <i class="fa fa-book-open text-5xl mb-4 opacity-50"></i>
+            <h3 class="text-xl font-medium mb-2">欢迎使用创作中心</h3>
+            <p class="max-w-md">请从左侧菜单中选择 <span class="text-primary font-medium">书籍信息</span> 来设置书籍基本信息，<br>或选择大纲中的章节开始编辑内容。</p>
+          </div>
+        </div>
+      {/if}
+
     </div>
   </div>
 </main>

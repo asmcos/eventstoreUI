@@ -1,7 +1,10 @@
 <script>
   import { onMount } from 'svelte';
     
-  import { upload_file,save_user_profile ,get_user_profile} from "$lib/esclient";
+  import { upload_file,save_user_profile ,
+    get_user_profile,
+    get_user_by_pubkeys} from "$lib/esclient";
+
   import { getKey } from "$lib/getkey";
   import { uploadpath } from "$lib/config";
   import { showNotification } from "$lib/message";
@@ -19,9 +22,10 @@
   let avatarUrl;
   let avatarImgData = '';
   let isAvatarContainerActive = false; 
-  let username = "";  
-  let title = "前端开发";  
-  let bio = "我是   , 一位热爱技术和写作的开发者。\n专注于前端开发和用户体验设计，\n喜欢分享知识和经验。";
+  let username = "";
+  let email = "";  
+  let title = "机器人开发";  
+  let bio = "我是   , 一位热爱技术和写作的开发者。\n专注 ，\n喜欢分享知识和经验。";
 
   let user_profile;
   let showMoreHint = true; // 控制"下面还有信息"提示的显示状态
@@ -64,6 +68,10 @@
       }
     }) 
 
+    await get_user_by_pubkeys([Keypub],message=>{
+      if (message == "EOSE") return;
+      email = message.email;
+    })
     // 鼠标事件监听
     avatarContainer.addEventListener('mouseenter', () => {
       isAvatarContainerActive = true;
@@ -187,8 +195,11 @@
           showNotification('所有设置已保存');
           // 保存成功后显示"下面还有信息"提示
           showMoreHint = true;
-          // 5秒后自动隐藏提示（可选）
-          setTimeout(() => showMoreHint = false, 5000);
+          // 2秒后自动隐藏提示（可选）
+         setTimeout(() => {
+          window.location.reload();
+          }, 2000);
+
         } else {
           showNotification(message.message);
         }
@@ -221,6 +232,9 @@
     }
   }
 </script>
+<svelte:head>
+    <title>个人信息</title>
+</svelte:head>
 
 <!-- 页面设置 -->
 <div class="mt-8 bg-white rounded-xl shadow-sm overflow-hidden">
@@ -255,6 +269,15 @@
 
       <!-- 个人信息区域 -->
       <div class="space-y-6 mb-10">
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+            @
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">欢迎用户</p>
+            <p class="text-base font-medium text-gray-800">{email}</p>
+          </div>
+        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">用户名</label>
           <input 

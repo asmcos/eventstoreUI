@@ -25,6 +25,8 @@
   export let data;
   const { blogId, blogData, userProfile, error } = data;
 
+  
+
   let Keypriv;
   let Keypub;
 
@@ -755,7 +757,7 @@
 </style>
 
 <svelte:head>
-  <title>esbook - {blogData.title || "博客文章"}</title>
+  <title> {blogData.title || "博客文章"}</title>
 </svelte:head>
 
 <!-- 主布局容器 -->
@@ -820,12 +822,23 @@
         </div>
 
         <div class="blog-content ">
-          {#if currentContent && loaded }
-            <ViewMD mdcontent={currentContent} />
-          {:else}
-            <div class="text-center py-10 text-gray-500">
-              <p>暂无博客内容</p>
+          {#if !loaded}
+             
+            <div class="text-center py-10 text-gray-500 ">
+              <p>加载中...</p>
+              <div class="border-4 border-blue-200 border-t-blue-600 rounded-full w-8 h-8 animate-spin"></div>  
             </div>
+          {:else}
+             
+            {#if currentContent}
+               
+              <ViewMD mdcontent={currentContent} />
+            {:else}
+               
+              <div class="text-center py-10 text-gray-500">
+                <p>暂无博客内容</p>
+              </div>
+            {/if}
           {/if}
         </div>
       </div>

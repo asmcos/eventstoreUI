@@ -217,7 +217,7 @@ window.copyCode = copyCode;
  
 
 
-<div class="md-content scrollable-content">
+<div class="md-content">
    
   <div class="vp-doc" bind:this={container}>
     {@html compiledContent}
@@ -232,21 +232,11 @@ window.copyCode = copyCode;
     padding: 1.5rem;
     padding-bottom: 4rem; /* 底部大留白，确保内容可见 */
     box-sizing: border-box;
-    max-height: calc(100vh - 8rem); /* 控制最大高度（视口高度 - 预留空间） */
+    /* max-height: calc(100vh - 8rem);  控制最大高度（视口高度 - 预留空间） */
     background-color: #ffffff;
+    min-height:500px;
   }
-
-  /* 滚动控制 - 隐藏滚动条但保留功能 */
-  .scrollable-content {
-    overflow-y: auto; /* 启用垂直滚动 */
-    scrollbar-width: none; /* Firefox 隐藏滚动条 */
-    -ms-overflow-style: none; /* IE/Edge 隐藏滚动条 */
-  }
-
-  /* Chrome/Safari/Opera 隐藏滚动条 */
-  .scrollable-content::-webkit-scrollbar {
-    display: none;
-  }
+ 
 
 /* 在 ViewMD.svelte 的样式部分添加 */
 :global(.vp-doc img) {

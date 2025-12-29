@@ -131,7 +131,7 @@
         <div class="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xl">创</div>
         <div class="ml-3">
           <h2 class="font-bold text-gray-800">我的创作空间</h2>
-          <p class="text-sm text-gray-500">作者: {user_profile?user_profile.displayName:""}</p>
+          <p class="text-sm text-gray-500">用户名: {user_profile?user_profile.displayName:"暂未设置"}</p>
         </div>
       </div>
     </div>
@@ -143,33 +143,43 @@
 
       <ul>
         <li>
-          <a href="/creator" class="active-tab flex items-center px-4 py-3">
-            <i class="fas fa-home w-5 text-center mr-3"></i>
-            <span>概览</span>
-          </a>
-        </li>
-        <li>
-          <a href="/editblog" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50">
-            <i class="fas fa-blog w-5 text-center mr-3"></i>
-            <span>博客管理</span>
-            <span class="ml-auto bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">{blogTotalCount}</span>
-          </a>
-        </li>
-        <li>
-          <a href="/editbook" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50">
-            <i class="fas fa-book w-5 text-center mr-3"></i>
-            <span>书籍管理</span>
-            <span class="ml-auto bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">{bookTotalCount}</span>
+          <a href="/" class="flex items-center px-4 py-3 text-gray-700 hover:bg-sky-50">
+            <i class="fas fa-home w-5 text-center mr-3 text-sky-500"></i>
+            <span>主页</span>
           </a>
         </li>
 
         <li>
-          <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50">
-            <i class="fas fa-chart-line w-5 text-center mr-3"></i>
+          <a href="/creator" class="flex items-center px-4 py-3 text-gray-700 hover:bg-indigo-50">
+            <i class="fas fa-pen-nib w-5 text-center mr-3 text-indigo-500"></i>
+            <span>创作中心</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="/editblog" class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50">
+            <i class="fas fa-blog w-5 text-center mr-3 text-emerald-500"></i>
+            <span>博客管理</span>
+            <span class="ml-auto bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full">{blogTotalCount}</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="/editbook" class="flex items-center px-4 py-3 text-gray-700 hover:bg-amber-50">
+            <i class="fas fa-book w-5 text-center mr-3 text-amber-500"></i>
+            <span>书籍管理</span>
+            <span class="ml-auto bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full">{bookTotalCount}</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-rose-50">
+            <i class="fas fa-chart-line w-5 text-center mr-3 text-rose-500"></i>
             <span>数据统计</span>
           </a>
         </li>
       </ul>
+
 
       <div class="px-4 mt-8 mb-4">
         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">创作工具</p>
@@ -196,10 +206,10 @@
      
     <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 bg-gray-50">
       <div class="flex items-center justify-between">
-        <a href="/creator/profile" class="rounded-lg border border-transparent hover:shadow-md hover:scale-[1.02] transition-all duration-200 ease-in-out hover:bg-primary/5">
+        <a href="/creator/profile" class="rounded-lg border border-transparent p-1  hover:bg-purple-100 hover:scale-[1.02] transition-all duration-200 ease-in-out">
         <div class="flex items-center ">
         <!-- 根据用户资料是否存在动态渲染头像或默认图标 -->
-        <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+        <div class="w-10 h-10 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center overflow-hidden">
         {#if user_profile && user_profile.avatarUrl}
             <!-- 存在头像URL时显示用户头像 -->
             <img 
@@ -213,7 +223,7 @@
         {/if}
         </div>
           <div class="ml-3 ">
-            <p class="text-sm font-medium text-gray-900"> {user_profile?user_profile.displayName:""}</p>
+            <p class="text-sm font-medium text-gray-900"> {user_profile?user_profile.displayName:"未完善信息"}</p>
             <p class="text-xs text-gray-500"> {user_profile?user_profile.title:""}</p>
           </div>
         </div>

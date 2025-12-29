@@ -83,8 +83,8 @@ async function safeUpdateDatas() {
     return; // 直接退出，不执行更新
   }
  
+  isUpdating = true; // 上锁
   try {
-    isUpdating = true; // 上锁
     console.log("开始更新数据...");
 
     // 1. 并行加载书籍和博客（提高效率）
@@ -110,8 +110,8 @@ async function safeUpdateDatas() {
     console.error("数据更新失败：", error);
     // 失败时不更新缓存，保留旧数据
   } finally {
-    isUpdating = false; // 解锁（无论成功失败都要释放）
   }
+  isUpdating = false; // 解锁（无论成功失败都要释放）
 }
 
 // 初始化：服务启动时执行一次
