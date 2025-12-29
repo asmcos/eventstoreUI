@@ -77,8 +77,8 @@
 
      <div class="container mx-auto px-4 py-8">
         <div class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-900 mb-4">RISC-V 技术博客</h1>
-            <p class="text-xl text-gray-600 max-w-3xl mx-auto">探索RISC-V架构、开发技巧、系统设计以及最新技术动态</p>
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">{siteConfig.name} 技术博客</h1>
+            <p class="text-xl text-gray-600 max-w-3xl mx-auto">辰龙操作系统 开发技巧、系统设计以及最新技术动态</p>
         </div>
 
         <!-- 博客列表 - 改为2列布局 -->
@@ -141,7 +141,7 @@
           <a href="/" class="inline-block mb-4">
             <span class="text-white text-2xl font-bold">RISCVBooks<span class="text-blue-400">资料中心</span></span>
           </a>
-          <p class="text-gray-400 mb-6">专注于RISC-V架构、芯片设计与系统软件开发的专业文档资源平台，助力开发者深入技术核心。</p>
+          <p class="text-gray-400 mb-6">专注于操作系统开发的专业文档资源平台，助力开发者深入技术核心。</p>
           <div class="flex space-x-4">
  
           </div>
@@ -159,7 +159,6 @@
         <div>
           <h4 class="text-lg font-semibold mb-4">技术领域</h4>
           <ul class="space-y-2">
-            <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">RISC-V架构</a></li>
             <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">芯片设计</a></li>
             <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">系统软件</a></li>
             <li><a href="#" class="text-gray-400 hover:text-white transition-colors duration-200">驱动开发</a></li>
@@ -175,7 +174,7 @@
             </li>
             <li class="flex items-start">
               <i class="fab fa-github mt-1 mr-3 text-gray-400"></i>
-              <span class="text-gray-400">https://github.com/riscvbooks</span>
+              <span class="text-gray-400">https://github.com/chenlongos</span>
             </li>
             <li class="flex items-start">
               <i class="fa fa-globe mt-1 mr-3 text-gray-400"></i>
