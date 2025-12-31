@@ -17,22 +17,20 @@ function save_user_profile(pubkey, profile, expireTime = DEFAULT_PROFILE_EXPIRE)
   };
 
   const finalKey = `${PROFILE_KEY_PREFIX}${pubkey}`;
-  store.set(finalKey, cacheData);
+  store.set(finalKey, JSON.stringify(cacheData));
 }
 
 function get_user_profile(pubkey) {
   if (!pubkey) return null;
 
   const finalKey = `${PROFILE_KEY_PREFIX}${pubkey}`;
-  const cacheData = store.get(finalKey);
+  let cacheData = store.get(finalKey);
 
+ 
   if (!cacheData) return null;
 
-  if (!cacheData.expireAt) {
-    save_user_profile(pubkey, cacheData.profile || cacheData);
-    return cacheData.profile || cacheData;
-  }
-
+ 
+  cacheData = JSON.parse(cacheData);
   const now = Date.now();
   if (now > cacheData.expireAt) {
     store.remove(finalKey);
@@ -92,6 +90,7 @@ function clear_exceed_user_profiles(maxCount = 100) {
 }
 
 function store_get_users_profile(pubkeys, callback) {
+    
   if (!Array.isArray(pubkeys) || pubkeys.length === 0) {
     callback("EOSE");
     return;
@@ -103,10 +102,11 @@ function store_get_users_profile(pubkeys, callback) {
 
   pubkeys.forEach(pubkey => {
     const localProfile = get_user_profile(pubkey);
+    
     if (localProfile) {
       callback({
         pubkey: pubkey,
-        profile: localProfile,
+        data: localProfile,
       });
     } else {
       needRemotePubkeys.push(pubkey);
@@ -118,7 +118,7 @@ function store_get_users_profile(pubkeys, callback) {
     return;
   }
 
-  const remoteHandledPubkeys = new Set();
+ 
   get_users_profile(needRemotePubkeys, (remoteMessage) => {
     if (remoteMessage === "EOSE") {
       callback("EOSE");
@@ -128,17 +128,14 @@ function store_get_users_profile(pubkeys, callback) {
     remoteMessage.data = JSON.parse(remoteMessage.data);
 
     const userPubkey  =  remoteMessage.user;
-    const userProfile =  remoteMessage.data || remoteMessage;
-    
-
-    if (userPubkey && userProfile && !remoteHandledPubkeys.has(userPubkey)) {
-      remoteHandledPubkeys.add(userPubkey);
-      save_user_profile(userPubkey, userProfile);
-      callback({
+    const userProfile =  remoteMessage.data  
+    console.log(userProfile)
+    save_user_profile(userPubkey, userProfile);
+    callback({
         pubkey: userPubkey,
-        profile: userProfile,
-      });
-    }
+        data: userProfile,
+    });
+    
   });
 }
 

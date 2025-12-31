@@ -207,7 +207,7 @@
       });
       
       // 获取用户pubkey
-      const userPubkey = event.user?.pubkey || 'unknown';
+      const userPubkey = event.user ;
       
       return {
         id: event.id || Math.random().toString(36).substr(2, 9),
@@ -234,25 +234,7 @@
       console.error('解析事件出错:', error);
       // 返回一个默认的topic对象
       return {
-        id: Math.random().toString(36).substr(2, 9),
-        title: '解析失败',
-        content: '',
-        user: 'unknown',
-        author: {
-          id: 'unknown',
-          name: '未知用户',
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=unknown'
-        },
-        category: '未分类',
-        status: 'published',
-        createdAt: new Date().toISOString(),
-        lastReplyAt: null,
-        replyCount: 0,
-        viewCount: 0,
-        isSticky: false,
-        isHot: false,
-        tags: [],
-        rawEvent: event
+ 
       };
     }
   }
@@ -264,6 +246,7 @@
     // 收集所有不重复的pubkey
     const pubkeys = new Set();
     topics.forEach(topic => {
+      console.log(topic)
       if (topic.user && topic.user !== 'unknown') {
         pubkeys.add(topic.user);
       }
@@ -276,26 +259,10 @@
     // 调用store_get_users_profile获取用户资料
     store_get_users_profile(
       Array.from(pubkeys),
-      (profiles) => {
-        console.log(profiles)
-        if (profiles && Array.isArray(profiles)) {
-          // 按照你的数据结构更新users_profile
-          profiles.forEach(profile => {
-            if (profile && profile.pubkey) {
-              users_profile[profile.pubkey] = {
-                data: {
-                  displayName: profile.display_name || profile.nickname || profile.name || `用户${profile.pubkey.slice(0, 6)}`,
-                  avatarUrl: profile.picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.pubkey}`,
-                  about: profile.about,
-                  nip05: profile.nip05
-                }
-              };
-            }
-          });
-          
-          // 强制Svelte重新渲染
-          users_profile = { ...users_profile };
-        }
+      (profile) => {
+        console.log(profile) 
+        users_profile [profile.pubkey] = profile.data;
+        
       }
     );
   }
@@ -314,6 +281,7 @@
   
   // 获取用户头像URL - 根据你的数据结构
   function getUserAvatarUrl(userPubkey) {
+    console.log(users_profile,userPubkey)
     if (!userPubkey || userPubkey === 'unknown') {
       return 'https://api.dicebear.com/7.x/avataaars/svg?seed=unknown';
     }
