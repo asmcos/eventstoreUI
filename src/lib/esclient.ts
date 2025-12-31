@@ -943,3 +943,185 @@ export async function get_blog_comment_counts(blogId, callback) {
       callback(message[2]);
   }); 
 }
+
+/*
+* topic 
+*/
+export async function create_topic(topicData,pubkey,privkey,callback){
+  await client.connect().catch(error => {});
+
+  let isDraft = false;
+
+  let topicId ;
+  topicData = JSON.parse(topicData);
+
+  if (topicData.topicId) { 
+    topicId = topicData.topicId;
+    delete topicData.topicId;
+
+  } else {
+    topicId =  getId({pubkey,time:Math.floor(Date.now())})
+  }
+
+
+  let event = {
+  
+      "ops": "C",
+      "code": 200,
+      "user": pubkey,
+      "data": JSON.stringify(topicData),
+      "tags":[ ['t','create_topic'], ['d',topicId],
+               ['s', isDraft ? 'draft' : 'published']  // 新增状态标签
+            ]
+    }
+  if (topicData.labels) event.labels = topicData.labels; 
+
+   
+
+  let sevent = secureEvent(event,privkey);
+  callback({code:201,id:topicId})
+
+  client.publish(sevent,function(message){
+      callback(message[2]);
+  });  
+}
+
+export async function get_topic_id(topicid,callback){
+  
+  await client.connect().catch(error => {});
+  
+  let event = {
+      "ops": "R",
+      "code": 203,
+      "tags":[ ['t','create_topic'], ['d',topicid]],
+      
+    }
+ 
+  client.subscribe(event,function(message){
+         
+      if (message[2] == "EOSE") client.unsubscribe(message[1]);
+      
+      callback(message[2])
+    }); 
+}
+
+
+export async function get_topic_shortid(s_userid,s_topicid,callback){
+  
+  await client.connect().catch(error => {});
+  
+
+  let event = 
+    {
+  
+      "ops": "R",
+      "code": 203,
+      "eventuser": { "$regex": `^${s_userid}` },
+      "tags": 
+           [
+              { $elemMatch: { "0": "d", "1":  { "$regex": `^${s_topicid}` } } },
+              { $elemMatch: { "0": "t", "1": "create_topic" } }    
+          ]
+       ,
+    }
+
+  client.subscribe(event,function(message){
+         
+      if (message[2] == "EOSE") client.unsubscribe(message[1]);
+      
+      callback(message[2])
+    }); 
+}
+
+export async function get_topics(pubkey,isDraft=1,offset=0,limit=10,callback){
+  
+  await client.connect().catch(error => {});
+  
+  let event = {
+      "ops": "R",
+      "code": 203,
+      "limit":limit,
+      "offset":offset,
+      "tags":[ ['t','create_topic'], ],
+    };
+  if (isDraft == 1)
+    event.tags.push(['s', 'draft'])
+  
+  if (isDraft == 2)
+    event.tags.push(['s', 'published'])
+
+  // isDraft 是其他值，就不填写 status标志，也就是查询所有的。例如 isDraft=0;
+
+  if (pubkey) event['eventuser'] = pubkey;
+
+  
+  client.subscribe(event,function(message){
+         
+      if (message[2] == "EOSE") client.unsubscribe(message[1]);
+      
+      callback(message[2])
+    }); 
+}
+
+export async function create_post(content,topicid,pid,postid,pubkey,privkey,callback){
+  await client.connect().catch(error => {});
+
+  let isDraft = false;
+  
+  // new post
+  if(!postid) {
+    postid =  getId({pubkey,time:Math.floor(Date.now())})
+  }
+
+  // topic id 是回复的root topic id
+  // pid 是回复的 父 postid
+  // 如果回复的是顶楼 topic id，那么 pid == topicid
+
+  let event = {
+  
+      "ops": "C",
+      "code": 200,
+      "user": pubkey,
+      "data": content,
+      "tags":[ ['t','create_post'], ['d',postid],
+               ['s', isDraft ? 'draft' : 'published'],  // 新增状态标签
+               ['topicid',topicid],
+               ['pid',pid] 
+            ]
+    }
+   
+  let sevent = secureEvent(event,privkey);
+  callback({code:201,id:postid})
+
+  client.publish(sevent,function(message){
+      callback(message[2]);
+  });  
+}
+
+export async function get_topic_posts(topicid,callback){
+  await client.connect().catch(error => {});
+
+  let isDraft = false;
+  
+ 
+
+  // topic id 是回复的root topic id
+  // pid 是回复的 父 postid
+  // 如果回复的是顶楼 topic id，那么 pid == topicid
+
+  let event = {
+  
+      "ops": "C",
+      "code": 200,
+      "user": pubkey,
+      "data": content,
+      "tags":[ ['t','create_post'],
+               ['s', isDraft ? 'draft' : 'published'],  // 新增状态标签
+               ['topicid',topicid],
+            ]
+    }
+
+  client.publish(event,function(message){
+      callback(message[2]);
+  });  
+}

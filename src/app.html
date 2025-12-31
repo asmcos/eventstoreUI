@@ -4,7 +4,7 @@
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="/css/main.css" rel="stylesheet">
         <!-- 当前方案 -->
         <link href="https://cdn.jsdmirror.com/npm/font-awesome/css/font-awesome.min.css" rel="stylesheet"> <!-- 4.7.0 -->
         <link href="https://cdn.staticfile.org/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -12,37 +12,7 @@
  
     
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#165DFF',
-                        secondary: '#722ED1',
-                        accent: '#FF7D00',
-                        dark: '#1D2129',
-                        light: '#F2F3F5',
-                        muted: '#86909C',
-                        techBlue: '#2563EB',
-                        cpuRed: '#DC2626',
-                        osGreen: '#059669',
-                        hardwarePurple: '#7C3AED',
-                        deepBlue: '#0d3b9d',
-                        electricBlue: '#2d8cff',
-                        heroStart: '#1e40af',
-                        heroEnd: '#3b82f6'
-                    },
-                    fontFamily: {
-                        inter: ['Inter', 'sans-serif'],
-                        mono: ['Fira Code', 'monospace']
-                    },
-                    boxShadow: {
-                        'card': '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03)',
-                        'card-hover': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                        'glow': '0 0 20px rgba(45, 140, 255, 0.6)'
-                    }
-                },
-            }
-        }
+ 
     </script>
     <style type="text/tailwindcss">
         @layer utilities {

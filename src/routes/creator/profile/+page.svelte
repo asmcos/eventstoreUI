@@ -149,12 +149,14 @@
   function uploadFilePromise(path, data, key) {
     return new Promise((resolve, reject) => {
       upload_file("user-avatar.png",avatarImgData,Keypub,Keypriv, (message) => {
-        if (message[2].code == 200){
+        if (message[2].code == 202){
+        }else if (message[2].code == 200){
           avatarUrl = message[2].fileUrl;
+          resolve(message[2].code);
         } else {
           showNotification(message[2].message,2000,"warning");
         }
-        if (message[2].code) resolve(message[2].code);
+        
       });
     });
   }

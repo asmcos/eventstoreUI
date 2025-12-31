@@ -25,12 +25,15 @@
   let displayedBooks = data.books;
  
 
-    function goTobook(bookId){
-        window.location.href = "/viewbooks/" + bookId;
-    }
-    
- 
+  function goTobook(bookId){
+      window.location.href = "/viewbooks/" + bookId;
+  }
 
+  function goToblog(blogId){
+  
+    window.location.href = "/viewblog/?blogid=" + blogId
+
+  }
 
   function getShortBookId(book) {
     return `${book.user.substring(0, 8)}-${book.id.substring(0, 8)}`;
@@ -335,7 +338,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {#each blogs as blog}
-            <article class="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100">
+            <article class="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100" on:click={goToblog(getShortBlogId(blog))}>
               <div class="p-5">
                 <div class="flex items-start mb-4">
                   <!-- 120x120正方形小图片 -->
@@ -346,7 +349,7 @@
                   <div class="flex-1">
                      
                     <h3 class="font-semibold text-lg mb-2 hover:text-blue-600 transition-colors duration-200">
-                      <a href="/viewblog?blogid={getShortBlogId(blog)}">{blog.data.title}</a>
+                      <a href=" "  >{blog.data.title}</a>
 
                     </h3>
                      <div class="flex items-center text-sm text-gray-500 mb-1">
@@ -375,7 +378,7 @@
                     <span class="text-sm text-gray-700">{users_profile[blog.user].data.displayName}</span>
                   </div>
                   {/if}
-                  <a href="/viewblog?blogid={getShortBlogId(blog)}" class="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center">
+                  <a href="" class="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center" >
 
                     阅读全文
                     <i class="fa fa-angle-right ml-1"></i>
