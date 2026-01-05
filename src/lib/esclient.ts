@@ -1025,6 +1025,7 @@ export async function get_topic_shortid(s_userid,s_topicid,callback){
        ,
     }
 
+  
   client.subscribe(event,function(message){
          
       if (message[2] == "EOSE") client.unsubscribe(message[1]);
@@ -1098,7 +1099,7 @@ export async function create_post(content,topicid,pid,postid,pubkey,privkey,call
   });  
 }
 
-export async function get_topic_posts(topicid,callback){
+export async function get_topic_posts(topicid,offset=0,limit=10,callback){
   await client.connect().catch(error => {});
 
   let isDraft = false;
@@ -1111,17 +1112,20 @@ export async function get_topic_posts(topicid,callback){
 
   let event = {
   
-      "ops": "C",
-      "code": 200,
-      "user": pubkey,
-      "data": content,
+      "ops": "R",
+      "code": 203,
+      "limit":limit,
+      "offset":offset,
       "tags":[ ['t','create_post'],
-               ['s', isDraft ? 'draft' : 'published'],  // 新增状态标签
+                
                ['topicid',topicid],
             ]
     }
-
-  client.publish(event,function(message){
-      callback(message[2]);
-  });  
+  console.log(event)
+  client.subscribe(event,function(message){
+         
+      if (message[2] == "EOSE") client.unsubscribe(message[1]);
+      
+      callback(message[2])
+  }); 
 }

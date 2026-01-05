@@ -5,6 +5,7 @@
   import { showNotification } from "$lib/message";
   import { get_topics } from "$lib/esclient";
   import { store_get_users_profile } from "$lib/userProfileStore";
+  import {uploadpath} from "$lib/config";
   
   import "$lib/viewtopic.css";
   
@@ -23,20 +24,41 @@
     totalItems: 0
   };
   
-  // 用户资料数据 - 与你的数据结构保持一致
+  // 用户资料数据 - 使用响应式更新
   let users_profile = {};
   
   // 筛选条件
   let filters = {
-    status: 'all', // all, draft, published
+    status: 'all',
     sort: 'latest',
     search: ''
   };
   
   // 当前显示的页面内容
-  let currentView = 'list'; // list, empty, error
+  let currentView = 'list';
   let errorMessage = '';
   
+    function getTagValue(tags, t) {
+        const dTag = tags.find(tag => Array.isArray(tag) && tag[0] === t);
+        return dTag ? dTag[1] : null;
+    }
+
+
+    function goToTopic(topicId){
+        window.location.href = "/viewtopics/" + topicId;
+    }
+
+    function getShortTopicId(topic) {
+        // 确保topic和topic.user存在
+        if (!topic || !topic.user) return 'unknown';
+        
+        // 使用用户pubkey的前8位和topic ID的前8位
+        const userPart = topic.user.substring(0, 8);
+        const idPart = topic.id ? topic.id.substring(0, 8) : 'unknown';
+        
+        return `${userPart}-${idPart}`;
+    }
+
   onMount(async () => {
     const Key = getKey();
     Keypriv = Key.Keypriv;
@@ -48,23 +70,20 @@
       return;
     }
     
-    // 加载主题列表
     await loadTopics();
   });
   
-  // 加载主题列表
   async function loadTopics() {
     if (!Keypub) return;
     
     topics = [];
+    users_profile = {}; // 清空用户资料
     loading = true;
     currentView = 'list';
     errorMessage = '';
     
-    // 计算offset
     const offset = (pagination.current - 1) * pagination.perPage;
     
-    // 确定isDraft值
     let isDraft;
     switch(filters.status) {
       case 'draft':
@@ -86,14 +105,26 @@
     });
     
     try {
-      // 获取主题
-      get_topics(
-        "",  // 使用当前用户的公钥
-        false, // isDraft状态
-        offset,  // offset
-        pagination.perPage, // limit
-        handleTopicMessage // callback
-      );
+      // 获取主题 - 使用Promise包装回调
+      await new Promise((resolve, reject) => {
+        get_topics(
+          "",
+          false,
+          offset,
+          pagination.perPage,
+          async (message) => {
+            try {
+              await handleTopicMessage(message);
+              // 如果收到EOSE，表示主题加载完成
+              if (message === "EOSE") {
+                resolve();
+              }
+            } catch (error) {
+              reject(error);
+            }
+          }
+        );
+      });
     } catch (error) {
       console.error('调用get_topics失败:', error);
       loading = false;
@@ -103,11 +134,10 @@
     }
   }
   
-  // 处理接收到的消息
-  function handleTopicMessage(message) {
-    console.log('收到消息:', message);
+  // 处理接收到的消息 - 改为async
+  async function handleTopicMessage(message) {
+    //console.log('收到消息:', message);
     
-    // 检查消息格式
     if (!message) {
       console.warn('收到空消息');
       return;
@@ -115,13 +145,12 @@
     
     // 如果是EOSE消息
     if (message === "EOSE") {
-      // 结束事件流，加载完成
-      loading = false;
+      // 等待用户资料加载完成
+      await loadUserProfiles();
       
-      // 检查是否还有更多数据
+      loading = false;
       hasMore = topics.length >= pagination.perPage;
       
-      // 如果没有数据，显示空状态
       if (topics.length === 0) {
         currentView = 'empty';
       } else {
@@ -129,10 +158,6 @@
       }
       
       console.log('加载完成，主题数量:', topics.length);
-      
-      // 主题加载完成后，获取用户资料
-      loadUserProfiles();
-      
       return;
     }
     
@@ -145,18 +170,16 @@
       return;
     }
     
-    // 处理事件数据 - 根据你提供的get_topics回调
+    // 处理事件数据
     if (message && message.code === 200) {
       try {
-        // 解析事件数据
         const topic = parseEventToTopic(message);
         
         if (topic) {
-          // 避免重复添加
           if (!topics.some(t => t.id === topic.id)) {
             topics = [...topics, topic];
             
-            // 按时间排序（最新的在前面）
+            // 按时间排序
             topics.sort((a, b) => {
               if (filters.sort === 'latest') {
                 return new Date(b.createdAt) - new Date(a.createdAt);
@@ -171,10 +194,8 @@
     }
   }
   
-  // 解析Nostr事件为Topic对象
   function parseEventToTopic(event) {
     try {
-      // 解析内容
       let data;
       try {
         data = JSON.parse(event.data || '{}');
@@ -182,7 +203,6 @@
         data = {};
       }
       
-      // 从tags中提取信息
       const tags = event.tags || [];
       let category = '未分类';
       let status = 'published';
@@ -191,13 +211,11 @@
       
       tags.forEach(tag => {
         if (Array.isArray(tag)) {
-          if (tag[0] === 't') {
-            if (tag[1] !== 'create_topic') {
-              if (!category || category === '未分类') {
-                category = tag[1];
-              }
-              tagArray.push(tag[1]);
+          if (tag[0] === 't' && tag[1] !== 'create_topic') {
+            if (!category || category === '未分类') {
+              category = tag[1];
             }
+            tagArray.push(tag[1]);
           } else if (tag[0] === 's') {
             status = tag[1];
           } else if (tag[0] === 'sticky' && tag[1] === 'true') {
@@ -206,19 +224,13 @@
         }
       });
       
-      // 获取用户pubkey
-      const userPubkey = event.user ;
+      const userPubkey = event.user;
       
       return {
-        id: event.id || Math.random().toString(36).substr(2, 9),
+        id: getTagValue(event.tags,'d'),
         title: data.title || '无标题',
         content: data.content || '',
-        user: userPubkey, // 存储用户pubkey
-        author: { // 保留原有结构，但内容会通过用户资料更新
-          id: userPubkey,
-          name: '加载中...',
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userPubkey}`
-        },
+        user: userPubkey,
         category: category,
         status: status,
         createdAt: event.created_at ? new Date(event.created_at * 1000).toISOString() : new Date().toISOString(),
@@ -232,21 +244,16 @@
       };
     } catch (error) {
       console.error('解析事件出错:', error);
-      // 返回一个默认的topic对象
-      return {
- 
-      };
+      return null;
     }
   }
   
-  // 获取用户资料 - 根据你的数据结构
-  function loadUserProfiles() {
+  // 获取用户资料 - 改为async，等待所有资料加载完成
+  async function loadUserProfiles() {
     if (!topics.length) return;
     
-    // 收集所有不重复的pubkey
     const pubkeys = new Set();
     topics.forEach(topic => {
-      console.log(topic)
       if (topic.user && topic.user !== 'unknown') {
         pubkeys.add(topic.user);
       }
@@ -256,45 +263,39 @@
     
     console.log('获取用户资料，pubkeys数量:', pubkeys.size);
     
-    // 调用store_get_users_profile获取用户资料
-    store_get_users_profile(
-      Array.from(pubkeys),
-      (profile) => {
-        console.log(profile) 
-        users_profile [profile.pubkey] = profile.data;
-        
-      }
-    );
+    // 使用Promise包装store_get_users_profile回调
+    return new Promise((resolve) => {
+      store_get_users_profile(
+        Array.from(pubkeys),
+        (profile) => {
+          if (profile && profile.pubkey) {
+            // 直接更新users_profile对象
+            users_profile[profile.pubkey] = profile.data || profile;
+            
+            // 为了让Svelte检测到变化，需要重新赋值
+            users_profile = users_profile;
+            
+            console.log('更新用户资料:', profile.pubkey);
+          }
+
+          if(profile == "EOSE") resolve();
+          
+          // 这里假设store_get_users_profile会在所有资料获取完成后回调
+          // 或者有某种方式知道所有资料都已加载
+          // 如果是一次性返回所有资料，可以在这里resolve
+        }
+      );
+      
+      // 或者设置一个超时，确保不会永远等待
+      setTimeout(() => {
+        console.log('用户资料加载超时或完成');
+        resolve();
+      }, 2000); // 2秒超时
+    });
   }
   
-  // 获取用户显示名称 - 根据你的数据结构
-  function getUserDisplayName(userPubkey) {
-    if (!userPubkey || userPubkey === 'unknown') return '未知用户';
-    
-    if (users_profile[userPubkey] && users_profile[userPubkey].data && users_profile[userPubkey].data.displayName) {
-      return users_profile[userPubkey].data.displayName;
-    }
-    
-    // 如果还没有用户资料，返回默认名称
-    return `用户${userPubkey.slice(0, 6)}`;
-  }
+  // 直接在模板中使用users_profile对象，不要用getter函数
   
-  // 获取用户头像URL - 根据你的数据结构
-  function getUserAvatarUrl(userPubkey) {
-    console.log(users_profile,userPubkey)
-    if (!userPubkey || userPubkey === 'unknown') {
-      return 'https://api.dicebear.com/7.x/avataaars/svg?seed=unknown';
-    }
-    
-    if (users_profile[userPubkey] && users_profile[userPubkey].data && users_profile[userPubkey].data.avatarUrl) {
-      return users_profile[userPubkey].data.avatarUrl;
-    }
-    
-    // 如果还没有用户资料，返回默认头像
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${userPubkey}`;
-  }
-  
-  // 以下所有原有函数保持不变
   // 处理状态筛选
   function handleStatusFilter(status) {
     filters.status = status;
@@ -317,26 +318,52 @@
   // 刷新列表
   function handleRefresh() {
     topics = [];
+    users_profile = {};
     pagination.current = 1;
     loadTopics();
     showNotification("刷新中...", 1000, "info");
   }
   
   // 加载更多
-  function handleLoadMore() {
+  async function handleLoadMore() {
     if (!hasMore || loading) return;
     
     pagination.current += 1;
     const offset = (pagination.current - 1) * pagination.perPage;
     
-    // 获取更多主题
-    get_topics(
-      "", // pubkey传空
-      false, // isDraft
-      offset,
-      pagination.perPage,
-      handleTopicMessage
-    );
+    loading = true;
+    
+    try {
+      await new Promise((resolve, reject) => {
+        get_topics(
+          "",
+          false,
+          offset,
+          pagination.perPage,
+          async (message) => {
+            try {
+              if (message === "EOSE") {
+                // 加载更多时也要获取用户资料
+                await loadUserProfiles();
+                loading = false;
+                resolve();
+              } else if (message && message.code === 200) {
+                const topic = parseEventToTopic(message);
+                if (topic && !topics.some(t => t.id === topic.id)) {
+                  topics = [...topics, topic];
+                }
+              }
+            } catch (error) {
+              reject(error);
+            }
+          }
+        );
+      });
+    } catch (error) {
+      console.error('加载更多失败:', error);
+      loading = false;
+      showNotification("加载更多失败", 3000, "error");
+    }
   }
   
   // 跳转到主题详情
@@ -359,7 +386,6 @@
       const now = new Date();
       const diff = now - date;
       
-      // 如果是今天
       if (date.toDateString() === now.toDateString()) {
         return date.toLocaleTimeString('zh-CN', { 
           hour: '2-digit', 
@@ -367,35 +393,20 @@
         });
       }
       
-      // 如果是昨天
       const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
       if (date.toDateString() === yesterday.toDateString()) {
         return '昨天';
       }
       
-      // 一周内
       if (diff < 7 * 24 * 60 * 60 * 1000) {
         const days = Math.floor(diff / (24 * 60 * 60 * 1000));
         return `${days}天前`;
       }
       
-      // 返回日期
       return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
     } catch (error) {
       return '';
-    }
-  }
-  
-  // 获取状态标签样式
-  function getStatusStyle(status) {
-    switch(status) {
-      case 'draft':
-        return { label: '草稿', class: 'status-draft' };
-      case 'published':
-        return { label: '已发布', class: 'status-published' };
-      default:
-        return { label: '未知', class: 'status-unknown' };
     }
   }
 </script>
@@ -437,19 +448,6 @@
     </div>
   </div>
   
-  <!-- 筛选标签 -->
-  {#if 0}
-  <div class="filter-tabs">
-    <button 
-      class:active={filters.status === 'all'}
-      on:click={() => handleStatusFilter('all')}
-      class="filter-tab {filters.status === 'all' ? 'active' : ''}"
-    >
-      全部主题
-    </button>
-  </div>
-  {/if}
-
   <!-- 主要内容区域 -->
   <div class="topics-container">
     <!-- 加载状态 -->
@@ -505,17 +503,27 @@
                     {/if}
                   </div>
                   <div class="topic-info">
-                    <h3 class="topic-title">
+                    <h3 class="topic-title" on:click={goToTopic(getShortTopicId(topic))}>
                       {topic.title}
                     </h3>
                     <div class="topic-meta">
                       <div class="author-info">
+                        <!-- 直接使用users_profile对象，Svelte会自动响应式更新 -->
                         <img 
-                          src={getUserAvatarUrl(topic.user)} 
-                          alt={getUserDisplayName(topic.user)}
+                          src={uploadpath+users_profile[topic.user]?.avatarUrl || 
+                               `https://api.dicebear.com/7.x/avataaars/svg?seed=${topic.user}`} 
+                          alt={users_profile[topic.user]?.displayName || 
+                               users_profile[topic.user]?.name ||
+                               users_profile[topic.user]?.data?.displayName ||
+                               `用户${topic.user?.slice(0, 6)}`}
                           class="author-avatar"
                         />
-                        <span class="author-name">{getUserDisplayName(topic.user)}</span>
+                        <span class="author-name">
+                          {users_profile[topic.user]?.displayName || 
+                           users_profile[topic.user]?.name ||
+                           users_profile[topic.user]?.data?.displayName ||
+                           `用户${topic.user?.slice(0, 6)}`}
+                        </span>
                       </div>
                       {#if topic.category && topic.category !== '未分类'}
                         <span class="topic-category">{topic.category}</span>

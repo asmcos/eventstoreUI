@@ -129,7 +129,7 @@ function store_get_users_profile(pubkeys, callback) {
 
     const userPubkey  =  remoteMessage.user;
     const userProfile =  remoteMessage.data  
-    console.log(userProfile)
+   
     save_user_profile(userPubkey, userProfile);
     callback({
         pubkey: userPubkey,
