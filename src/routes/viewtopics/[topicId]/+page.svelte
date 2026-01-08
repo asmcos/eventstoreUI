@@ -6,6 +6,7 @@
   import { store_get_users_profile } from "$lib/userProfileStore";
   import { upload_file, create_post } from "$lib/esclient";
   import {uploadpath} from "$lib/config";
+  import {browselog} from "$lib/browselog";
 
   // 接收从load函数传递过来的数据
   export let data;
@@ -115,23 +116,25 @@
     Keypriv = Key.Keypriv;
     Keypub = Key.Keypub;
     
-    if (!Keypriv) {
-      showNotification("请先登录", 3000, "warning");
-      setTimeout(() => goto('/login'), 2000);
-      return;
+ 
+    browselog(Keypub, topicId);
+    
+    if (Keypriv) {
+      currentUser = {
+        pubkey: Keypub,
+        privkey: Keypriv
+      };
     }
     
-    currentUser = {
-      pubkey: Keypub,
-      privkey: Keypriv
-    };
-    
-    // 初始化SimpleMDE编辑器
-    initSimpleMDE();
+    // 只有在登录的情况下才初始化编辑器
+    if (currentUser) {
+      // 初始化SimpleMDE编辑器
+      initSimpleMDE();
+    }
     
     // 加载用户资料
     await loadUserProfiles();
-    console.log(users_profile)
+ 
   });
   
   onDestroy(() => {
@@ -476,7 +479,7 @@
   
   // 返回主题列表
   function goBackToList() {
-    goto('/topics');
+    goto('/viewtopics');
   }
   
   // 编辑主题（如果是作者）
@@ -486,6 +489,11 @@
     } else {
       showNotification("您不是该主题的作者", 3000, "warning");
     }
+  }
+  
+  // 跳转到登录页面
+  function goToLogin() {
+    goto('/login');
   }
 </script>
 
@@ -650,61 +658,94 @@
         </div>
       {/if}
       
-      <!-- 发布回复表单 -->
-      <div class="border-t border-gray-200 pt-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">发表回复</h3>
-        
-        <div class="space-y-4">
-          <!-- SimpleMDE编辑器 -->
-          <div class="simplemde-editor">
-            <textarea
-              bind:this={replyTextarea}
-              id="reply-editor"
-              placeholder="输入您的回复内容..."
-              rows="4"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none hidden"
-            ></textarea>
-          </div>
+      <!-- 发布回复区域 -->
+      {#if currentUser}
+        <!-- 登录用户显示回复表单 -->
+        <div class="border-t border-gray-200 pt-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">发表回复</h3>
           
-          <!-- 简单的上传提示 -->
-          <div class="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg">
-            <div class="flex items-center gap-2">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              <span>支持Markdown语法，可直接粘贴截图或使用工具栏上传图片</span>
+          <div class="space-y-4">
+            <!-- SimpleMDE编辑器 -->
+            <div class="simplemde-editor">
+              <textarea
+                bind:this={replyTextarea}
+                id="reply-editor"
+                placeholder="输入您的回复内容..."
+                rows="4"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none hidden"
+              ></textarea>
+            </div>
+            
+            <!-- 简单的上传提示 -->
+            <div class="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>支持Markdown语法，可直接粘贴截图或使用工具栏上传图片</span>
+              </div>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+              <button
+                on:click={() => {
+                  if (simpleMDE) {
+                    simpleMDE.value('');
+                  }
+                }}
+                class="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+              >
+                清空
+              </button>
+              
+              <button
+                on:click={publishReply}
+                disabled={!replyContent.trim() || !currentUser || replying}
+                class="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {#if replying}
+                  <span class="flex items-center gap-2">
+                    <div class="spinner-small"></div>
+                    发布中...
+                  </span>
+                {:else}
+                  发布回复
+                {/if}
+              </button>
             </div>
           </div>
-          
-          <div class="flex justify-end gap-3">
-            <button
-              on:click={() => {
-                if (simpleMDE) {
-                  simpleMDE.value('');
-                }
-              }}
-              class="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-            >
-              清空
-            </button>
-            
-            <button
-              on:click={publishReply}
-              disabled={!replyContent.trim() || !currentUser || replying}
-              class="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {#if replying}
-                <span class="flex items-center gap-2">
-                  <div class="spinner-small"></div>
-                  发布中...
-                </span>
-              {:else}
-                发布回复
-              {/if}
-            </button>
+        </div>
+      {:else}
+        <!-- 未登录用户显示登录提示 -->
+        <div class="border-t border-gray-200 pt-6">
+          <div class="bg-blue-50 border border-blue-100 rounded-xl p-6 text-center">
+            <div class="mb-4">
+              <svg class="w-12 h-12 text-blue-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">登录后即可参与讨论</h3>
+            <p class="text-gray-600 mb-4">请登录后发表回复，与其他用户一起交流。</p>
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                on:click={goToLogin}
+                class="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              >
+                立即登录
+              </button>
+              <button
+                on:click={goBackToList}
+                class="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+              >
+                返回主题列表
+              </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-4">
+              还没有账号？<a href="/register" class="text-blue-600 hover:text-blue-800 font-medium">立即注册</a>
+            </p>
           </div>
         </div>
-      </div>
+      {/if}
     </div>
   {/if}
 </div>

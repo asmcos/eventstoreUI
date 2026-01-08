@@ -18,6 +18,7 @@
     get_book_comment_counts,
   } from "$lib/esclient";
   import { getKey } from "$lib/getkey";
+  import {browselog} from "$lib/browselog";
 
   export let data;
   const { 
@@ -206,6 +207,7 @@
     Keypriv = Key.Keypriv;
     Keypub = Key.Keypub;
 
+    browselog(Keypub, bookId);
     if (Keypub) {
       get_book_like(bookId, Keypub, function(message) {
         if (message != 'EOSE') {

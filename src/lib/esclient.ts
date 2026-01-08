@@ -1121,7 +1121,79 @@ export async function get_topic_posts(topicid,offset=0,limit=10,callback){
                ['topicid',topicid],
             ]
     }
-  console.log(event)
+ 
+  client.subscribe(event,function(message){
+         
+      if (message[2] == "EOSE") client.unsubscribe(message[1]);
+      
+      callback(message[2])
+  }); 
+}
+
+export async function get_topic_post_count(topicid,callback){
+  await client.connect().catch(error => {});
+ 
+  let event = {
+  
+      "ops": "R",
+      "code": 204,
+      "tags":[['t', 'create_post'],
+        ['topicid', topicid]]
+  }
+ 
+  client.subscribe(event,function(message){
+         
+      if (message[2] == "EOSE") client.unsubscribe(message[1]);
+      callback(message[2])
+  }); 
+}
+
+//多个topics 的id获取 post数
+export async function get_topics_post_count(topicsid,callback){
+  await client.connect().catch(error => {});
+ 
+  let event = {
+  
+      "ops": "R",
+      "code": 205,
+      "tags":[['t', 'create_post']],
+      "filter":['topicid',topicsid]
+  }
+ 
+  client.subscribe(event,function(message){
+         
+      if (message[2] == "EOSE") client.unsubscribe(message[1]);
+      callback(message[2])
+  }); 
+}
+
+//browselog
+export async function create_browselog(pubkey,targetId,callback){
+  await client.connect().catch(error => {});
+  
+  let event = {
+  
+      "ops": "C",
+      "code": 700,
+      "user":pubkey,
+      "targetId":targetId,
+    }
+ 
+  client.publish(event,function(message){
+      callback(message[2]);
+  }); 
+}
+
+export async function get_browselog_count(targetId,callback){
+  await client.connect().catch(error => {});
+  
+  let event = {
+  
+      "ops": "R",
+      "code": 704,
+      "targetId":targetId,
+  }
+ 
   client.subscribe(event,function(message){
          
       if (message[2] == "EOSE") client.unsubscribe(message[1]);

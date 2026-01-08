@@ -12,6 +12,8 @@
     get_blog_comments } from "$lib/esclient";
   import ViewMD from '$lib/ViewMD.svelte';
 
+  import {browselog} from "$lib/browselog";
+
   const colorPool = [
     { bgClass: "bg-blue-100", textClass: "text-blue-800" },
     { bgClass: "bg-green-100", textClass: "text-green-800" },
@@ -151,6 +153,8 @@
     Keypriv = Key.Keypriv;
     Keypub = Key.Keypub;
 
+    browselog(Keypub,blogId);
+    
     if (Keypub) {
       get_blog_like(blogId, Keypub, function(message) {
         if (message != 'EOSE') {

@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { getKey } from "$lib/getkey";
   import { showNotification } from "$lib/message";
-  import { get_topics } from "$lib/esclient";
+  import { get_topics,get_browselog_count,get_topics_post_count } from "$lib/esclient";
   import { store_get_users_profile } from "$lib/userProfileStore";
   import {uploadpath} from "$lib/config";
   
@@ -15,6 +15,8 @@
   
   // 主题列表数据
   let topics = [];
+  let topicsbrowse = {};
+  let topicsreply = {};
   let loading = true;
   let hasMore = true;
   let pagination = {
@@ -26,6 +28,7 @@
   
   // 用户资料数据 - 使用响应式更新
   let users_profile = {};
+ 
   
   // 筛选条件
   let filters = {
@@ -64,17 +67,13 @@
     Keypriv = Key.Keypriv;
     Keypub = Key.Keypub;
     
-    if (!Keypriv) {
-      showNotification("请先登录", 3000, "warning");
-      setTimeout(() => goto('/login'), 2000);
-      return;
-    }
-    
+  
     await loadTopics();
+    loadbrowelog();
   });
   
   async function loadTopics() {
-    if (!Keypub) return;
+    
     
     topics = [];
     users_profile = {}; // 清空用户资料
@@ -134,6 +133,8 @@
     }
   }
   
+  
+
   // 处理接收到的消息 - 改为async
   async function handleTopicMessage(message) {
     //console.log('收到消息:', message);
@@ -248,6 +249,31 @@
     }
   }
   
+  function loadbrowelog(){
+    
+    const ids = topics.map(topic => topic.id);
+
+    // 调用统计接口
+    get_browselog_count(ids, function (message) {
+        if (message.code == 200){
+            message.counts.map(count=>{
+                topicsbrowse[count.targetId] = count.count
+            })
+        }
+        if (message == "EOSE") topicsbrowse =  topicsbrowse
+    });
+
+    get_topics_post_count(ids,function(message){
+        if (message.code == 200){
+            message.counts.map(count=>{
+                 
+                topicsreply[count.targetid] = count.count
+            })
+        }
+        if (message == "EOSE") topicsreply =  topicsreply
+
+    })
+  }
   // 获取用户资料 - 改为async，等待所有资料加载完成
   async function loadUserProfiles() {
     if (!topics.length) return;
@@ -485,7 +511,7 @@
         <!-- 列表头部 -->
         <div class="topics-header">
           <div class="header-title">主题</div>
-          <div class="header-stats">回复</div>
+          <div class="header-stats">浏览/回复</div>
           <div class="header-time">发布时间</div>
         </div>
         
@@ -535,8 +561,8 @@
               
               <div class="topic-stats">
                 <div class="stats-box">
-                  <span class="stats-value">{topic.replyCount}</span>
-                  <span class="stats-label">回复</span>
+                  <span class="stats-value">{topicsbrowse[topic.id] ?? 0}/{topicsreply[topic.id] ?? 0}</span>
+                  
                 </div>
               </div>
               
