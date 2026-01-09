@@ -19,6 +19,8 @@
   } from "$lib/esclient";
   import { getKey } from "$lib/getkey";
   import {browselog} from "$lib/browselog";
+  import { store_get_users_profile } from "$lib/userProfileStore";
+  import {uploadpath} from "$lib/config";
 
   export let data;
   const { 
@@ -52,6 +54,9 @@
   let Keypub;
   let loaded = false;
   let mobileMenuOpen = false;
+
+
+  let users_profile = {};
 
   // 初始化数据
   get_book_like_counts(bookId, function(message) {
@@ -157,7 +162,31 @@
         comments = [...commentList].sort((a, b) => 
           (b.servertimestamp || 0) - (a.servertimestamp || 0)
         );
+      } 
+
+      if (message == 'EOSE'){
+        let users_pubkey = []
+
+        comments.forEach(comment => {
+          if (!users_pubkey.includes(comment.user)) {
+            users_pubkey.push(comment.user);
+          }
+        });
+        
+        store_get_users_profile(
+          users_pubkey,
+          (profile) => {
+            if (profile && profile.pubkey) {
+               
+              users_profile = {
+                ...users_profile,
+                [profile.pubkey]: profile.data || profile
+              };
+                   
+            }
+        })
       }
+
     });
   }
 
@@ -1225,10 +1254,11 @@
               <!-- 评论头部：作者和时间 -->
               <div class="comment-header">
                 <div class="comment-author-avatar">
-                  <span>{comment.author ? comment.author.charAt(0).toUpperCase() : 'U'}</span>
+                <img class="rounded-full" src={uploadpath + users_profile[comment.user]?.avatarUrl || 'https://picsum.photos/seed/' + comment.user + '/100/100' }>
+ 
                 </div>
                 <div class="comment-meta">
-                  <div class="comment-author-name">{comment.author || '匿名用户'}</div>
+                  <div class="comment-author-name">{users_profile[comment.user]?.displayName || '匿名用户'}</div>
                   <div class="comment-time">
                     {comment.servertimestamp 
                       ? new Date(comment.servertimestamp).toLocaleDateString('zh-CN', {

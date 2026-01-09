@@ -13,6 +13,9 @@
   import ViewMD from '$lib/ViewMD.svelte';
 
   import {browselog} from "$lib/browselog";
+  import { store_get_users_profile } from "$lib/userProfileStore";
+ 
+
 
   const colorPool = [
     { bgClass: "bg-blue-100", textClass: "text-blue-800" },
@@ -47,6 +50,8 @@
   let commentLoading = false;
   let submitCommentLoading = false;
   
+  let users_profile = {};
+
   
   // 初始化点赞状态和数量
   async function initLikeStatus() {
@@ -96,6 +101,30 @@
           }
           commentLoading = false;
         }
+
+      if (message == 'EOSE'){
+        let users_pubkey = []
+
+        commentList.forEach(comment => {
+          if (!users_pubkey.includes(comment.user)) {
+            users_pubkey.push(comment.user);
+          }
+        });
+        
+        store_get_users_profile(
+          users_pubkey,
+          (profile) => {
+            if (profile && profile.pubkey) {
+               
+              users_profile = {
+                ...users_profile,
+                [profile.pubkey]: profile.data || profile
+              };
+                   
+            }
+        })
+      }
+
       });
     } catch (err) {
       showNotification("加载评论失败", "error");
@@ -154,7 +183,7 @@
     Keypub = Key.Keypub;
 
     browselog(Keypub,blogId);
-    
+
     if (Keypub) {
       get_blog_like(blogId, Keypub, function(message) {
         if (message != 'EOSE') {
@@ -918,15 +947,14 @@
           <div class="comments-list">
             {#each commentList as comment,index}
               <div class="comment-item">
-                <div class={`comment-author-avatar-nobg ${colorPool[index % colorPool.length].bgClass}`}>
-                  <span class={colorPool[index % colorPool.length].textClass}>
-                    {'U'}
-                  </span>
+                <div  >
+                  <img class="rounded-full w-8 h-8 rounded-full mr-2 " src={uploadpath + users_profile[comment.user]?.avatarUrl || 'https://picsum.photos/seed/' + comment.user + '/100/100' }>
+ 
                 </div>
 
                 <div class="comment-content-wrapper">
                   <div class="comment-header">
-                    <span class="comment-author">{'本站用户'}</span>
+                    <span class="comment-author"> {users_profile[comment.user]?.displayName || '匿名用户'} </span>
                     <span class="comment-time">{comment.formattedTime}</span>
                   </div>
                   <div class="comment-header-divider"></div>
