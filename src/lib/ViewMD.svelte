@@ -261,7 +261,7 @@ window.copyCode = copyCode;
   /* 响应式适配 */
   @media (max-width: 768px) {
     .md-content {
-      max-height: calc(100vh - 8rem); /* 移动端调整高度 */
+       
       padding: 0.5rem;
       padding-bottom: 1rem; /* 移动端底部留白 */
     }
