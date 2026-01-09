@@ -759,7 +759,7 @@
           </div>
         {:else}
           <div class="space-y-0 mb-8 relative z-10">
-            {#each posts as post, index (post.id)}
+            {#each posts.slice().reverse() as post, index (post.id)}
               <div class="py-6 ">
                  
                 <!-- 强化的隔离线 - 更明显的视觉效果 -->
