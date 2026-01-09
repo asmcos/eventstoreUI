@@ -760,7 +760,8 @@
         {:else}
           <div class="space-y-0 mb-8 relative z-10">
             {#each posts as post, index (post.id)}
-              <div class="py-6 border-b border-purple-100">
+              <div class="py-6 ">
+                 
                 <!-- 强化的隔离线 - 更明显的视觉效果 -->
                 {#if index > 0}
                   <div class="w-full h-[1px] bg-gray-200 my-8"></div>
@@ -797,6 +798,7 @@
                     </div>
                   </div>
                 </div>
+               <div class="mt-4 mx-auto border-b border-purple-100 border-opacity-80"></div>
               </div>
             {/each}
           </div>
