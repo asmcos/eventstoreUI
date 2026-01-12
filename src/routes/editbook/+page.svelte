@@ -1355,7 +1355,7 @@
 </style>
 
 <svelte:head>
-    <title>RISCVBooks - 创作书籍</title>
+    <title> 创作书籍</title>
 </svelte:head>
 
 <main class="flex-grow flex flex-col max-w-7xl mx-auto px-4 py-6 w-full">
