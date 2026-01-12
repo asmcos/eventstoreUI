@@ -1,3 +1,7 @@
+ <script>
+ const year = new Date().getFullYear();
+ 
+ </script>
   <footer class="bg-gray-900 text-white pt-16 pb-8">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
@@ -50,7 +54,7 @@
       </div>
       <div class="border-t border-gray-800 pt-8">
         <div class="flex flex-col md:flex-row justify-between items-center">
-          <p class="text-gray-400 text-sm mb-4 md:mb-0">© 2025 辰龙社区文档中心. 保留所有权利。</p>
+          <p class="text-gray-400 text-sm mb-4 md:mb-0">© 2025 - {year} 辰龙社区文档中心. 保留所有权利。</p>
           <div class="flex space-x-6">
             <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors duration-200">隐私政策</a>
             <a href="#" class="text-gray-400 hover:text-white text-sm transition-colors duration-200">使用条款</a>
