@@ -1,4 +1,4 @@
-import { get_blogs, get_users_profile } from "$lib/esclient";
+import { get_blogs, get_users_profile,blog_counts } from "$lib/esclient";
 
 let cachedBlogs = [];
 let users_profile = {};
@@ -7,6 +7,7 @@ let users_profile = {};
 let lastUpdatedTime = 0; // 最后更新时间（时间戳）
 let isUpdating = false; // 更新锁：防止并发更新
 const UPDATE_INTERVAL = 5000; // 最小更新间隔（5秒）
+let pageSize = 10;
 
 // 工具函数：从tags中提取值
 function getTagValue(tags, key) {
@@ -54,20 +55,43 @@ function getUsersProfilePromise(pubkeys) {
   });
 }
 
+function getTotalPages(){
+  return new Promise((resolve) => {
+    blog_counts("",(message) =>{
+      let blogTotalCount;
+      let totalPages;
+      
+      if (message.code == 200) {
+        blogTotalCount = message.counts;
+        totalPages =  Math.ceil(blogTotalCount / pageSize) || 1;
+        resolve(totalPages);
+      }
+      if (message === "EOSE") {
+        resolve(0);
+      }
+    })
+  })
+}
+
 export async function load({ url }) {
 
+  const currentPage = parseInt(url.searchParams.get('page')) || 1;
+
+  
   const [blogsResult] = await Promise.all([
-    getBlogsPromise(0, 10)
+    getBlogsPromise((currentPage - 1) * pageSize, currentPage * 10)
   ]);
   const { userPubkeys } = blogsResult; // 从结果中提取userPubkeys
 
   const newProfiles = await getUsersProfilePromise(userPubkeys);
-
-
+  const totalPages  = await getTotalPages();
+  
   return {
     // 可根据需要返回数据，例如：
      blogs: blogsResult.blogs,
-     users_profile: newProfiles
+     users_profile: newProfiles,
+     currentPage:currentPage,
+     totalPages:totalPages,
   };
 }
 
