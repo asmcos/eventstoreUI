@@ -597,7 +597,7 @@
               {/if}
               
               <!-- 主题标题 - 突出显示 -->
-              <h1 class="text-2xl md:text-5xl font-bold text-gray-900 mb-6 tracking-tight">{topic.title}</h1>
+              <h1 class="text-2xl md:text-2xl font-bold text-gray-900 mb-6 tracking-tight">{topic.title}</h1>
               
               <!-- 作者信息和统计数据放在一行，弱化次要信息 -->
               <div class="flex flex-wrap items-center justify-between gap-6 mb-6">
