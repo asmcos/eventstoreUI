@@ -68,10 +68,42 @@
     text-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
     letter-spacing: -0.5px;
 }
+
+/* 创作中心按钮样式 */
+.creator-btn {
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    color: white;
+    font-weight: 600;
+    padding: 0.5rem 1.25rem;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.creator-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+    background: linear-gradient(90deg, #2563eb, #7c3aed);
+}
+
+/* 移动端创作中心按钮样式 */
+.mobile-creator-btn {
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.5rem;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
 </style>
 
  
-  <header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 bg-gray-900">
+<header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 bg-gray-900">
     <div class="border-b border-gray-800">
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
@@ -87,14 +119,22 @@
             <a href="https://docs.chenlongos.cn" class="text-gray-300 hover:text-white font-medium transition-colors duration-200">首页</a>
             <a href="https://docs.chenlongos.cn/viewbooks" class="text-gray-300 hover:text-white font-medium transition-colors duration-200">技术书籍</a>
             <a href="https://docs.chenlongos.cn/blogs" class="text-gray-300 hover:text-white font-medium transition-colors duration-200">博客文章</a>
- 
+            <a href="https://docs.chenlongos.cn/viewtopics" class="text-gray-300 hover:text-white font-medium transition-colors duration-200">话题</a>
           </nav>
 
           <!-- 右侧操作区 -->
           <div class="flex items-center space-x-4">
+            <!-- 创作中心按钮（桌面版） -->
+            <a href="https://docs.chenlongos.cn/creator" class=" md:block creator-btn">
+              创作中心
+            </a>
+            
+            <!-- 搜索按钮 -->
             <button id="search-btn" class="p-2 rounded-full hover:bg-gray-800 transition-colors duration-200">
               <i class="fa fa-search text-gray-400"></i>
             </button>
+            
+            <!-- 移动端菜单按钮 -->
             <button id="mobile-menu-btn" class="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors duration-200">
               <i class="fa fa-bars"></i>
             </button>
@@ -109,7 +149,14 @@
         <a href="https://docs.chenlongos.cn" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 text-white transition-colors duration-200">首页</a>
         <a href="https://docs.chenlongos.cn/viewbooks" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 text-white transition-colors duration-200">技术书籍</a>
         <a href="https://docs.chenlongos.cn/blogs" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 text-white transition-colors duration-200">博客文章</a>
-  
+        <a href="https://docs.chenlongos.cn/viewtopics" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 text-white transition-colors duration-200">话题</a>
+        
+        <!-- 移动端创作中心按钮 -->
+        <div class="pt-2">
+          <a href="https://docs.chenlongos.cn/creator" class="mobile-creator-btn">
+            创作中心
+          </a>
+        </div>
       </div>
     </div>
   </header>
