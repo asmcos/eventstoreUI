@@ -17,13 +17,13 @@
   }
 
 
-  let books = data.books;
-  let blogs = data.blogs;;
+  let books      = data.books;
+  let blogs      = data.blogs;
+  let browselogs = data.browselogs;
    
   let users_profile = data.users_profile;
 
   let displayedBooks = data.books;
- 
 
   function goTobook(bookId){
       window.location.href = "/viewbooks/" + bookId;
@@ -185,28 +185,58 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {#each displayedBooks as book}
-            <div class="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 flex flex-col" on:click={goTobook(getShortBookId(book))}>
-              <!-- 4:3比例图片 -->
-              <div class="relative" style="padding-top: 100%;">  
-                <img src={uploadpath + book.data.coverImgurl} alt={book.data.title} class="absolute inset-0 w-full h-full object-cover">
+            <div 
+              class="group bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col border border-gray-100 cursor-pointer"
+              on:click={goTobook(getShortBookId(book))}
+            >
+              <!-- 图片区域（保持1:1比例） -->
+              <div class="relative w-full" style="padding-top: 100%;">
+                <img 
+                  src={uploadpath + book.data.coverImgurl} 
+                  alt={book.data.title} 
+                  class="absolute top-0 left-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
               </div>
-              <div class="p-5">
-                <h3 class="font-semibold text-lg mb-3">{book.data.title}</h3>
-                <a href="/viewbooks/{getShortBookId(book)}"></a>
 
+              <!-- 内容区域 -->
+              <div class="p-5 flex-grow flex flex-col">
+                <!-- 标题 -->
+                <h3 class="font-bold text-gray-900 text-lg mb-3 group-hover:text-blue-600 transition-colors line-clamp-2 min-h-[56px]">
+                  {book.data.title}
+                </h3>
+                
+                <!-- 标签区域 -->
                 <div class="flex flex-wrap gap-2 mb-4">
                   {#each book.labels as label}
-                    <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                    <span class="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full border border-gray-200">
                       {label}
                     </span>
                   {/each}
                 </div>
-                <div class="flex justify-end">
-                  <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium">
-                    在线阅读
-                  </button>
+
+                <!-- 底部区域（包含浏览量和按钮） -->
+                <div class="mt-auto pt-4 border-t border-gray-100">
+                  <div class="flex items-center justify-between">
+                    <!-- 浏览量（显示在底部左侧） -->
+                    <div class="flex items-center text-gray-600">
+                      <div class="flex items-center bg-gray-50 px-3 py-1.5 rounded-lg">
+                        <svg class="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                          <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="text-sm font-medium">
+                          {browselogs[book.id] || 0}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <!-- 阅读按钮 -->
+                    <button class="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
+                      阅读
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -352,14 +382,16 @@
                       <a href=" "  >{blog.data.title}</a>
 
                     </h3>
-                     <div class="flex items-center text-sm text-gray-500 mb-1">
-                      <span class="flex items-center mr-3">
-                        <i class="fa fa-calendar-o mr-1"></i> {blog.servertimestamp.split("T")[0] }
-                      </span>
-                      <span class="flex items-center">
-                         
-                      </span>
-                    </div>
+                      <div class="space-y-2 mb-3">
+                        <div class="flex items-center">
+                          <i class="fa fa-calendar-o w-6 text-blue-400"></i>
+                          <span class="text-gray-700 ml-2"> {blog.servertimestamp.split("T")[0]}</span>
+                        </div>
+                        <div class="flex items-center">
+                          <i class="fa fa-eye w-6 text-green-400"></i>
+                          <span class="text-gray-700 ml-2"> {browselogs[blog.id] || 0} 次</span>
+                        </div>
+                      </div>
                   </div>
                 </div>
                 

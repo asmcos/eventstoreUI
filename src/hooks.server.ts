@@ -1,10 +1,11 @@
-import { get_books, get_blogs, get_users_profile } from "$lib/esclient";
+import { get_books, get_blogs, get_users_profile,get_browselog_count } from "$lib/esclient";
 import type { Handle } from '@sveltejs/kit';
 
 // 全局缓存
 let cachedBooks: any[] = [];
 let cachedBlogs: any[] = [];
 let users_profile: Record<string, any> = {};
+let browselogs = {};
 
 // 控制变量
 let lastUpdatedTime = 0; // 最后更新时间（时间戳）
@@ -75,6 +76,24 @@ function getUsersProfilePromise(pubkeys: string[]) {
   });
 }
 
+
+function getBrowselogsPromise(ids) {
+  return new Promise<Record <string,any> >((resolve) => {
+    const Logs: Record <string, any> = {};
+    
+    get_browselog_count(ids,(message: any) => {
+      if (message === "EOSE") {
+        resolve(Logs);
+      } else if (message) {
+        if (message.code == 200) {
+          message.counts.map(count => {
+            Logs[count.targetId] = count.count;
+          });
+        }
+      }
+    });
+  });
+}
 // 安全的更新函数：带锁和节流
 async function safeUpdateDatas() {
   const now = Date.now();
@@ -101,6 +120,9 @@ async function safeUpdateDatas() {
     cachedBlogs = newBlogs;
     users_profile = newProfiles;
 
+    let ids =   [...cachedBooks, ...cachedBlogs].map(item => item.id);  
+    browselogs = await getBrowselogsPromise(ids);
+
     // 4. 更新最后更新时间
     lastUpdatedTime = now;
     console.log("数据更新完成");
@@ -125,6 +147,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.books = cachedBooks;
   event.locals.blogs = cachedBlogs;
   event.locals.users_profile = users_profile;
+  event.locals.browselogs = browselogs;
 
   const response = await resolve(event);
   return response;

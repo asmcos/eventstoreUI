@@ -83,6 +83,7 @@
       loadSimpleMDE();
     }
 
+
     // 绑定粘贴事件
     document.addEventListener('paste', handlePaste);
       // 清理资源
@@ -103,6 +104,7 @@
 
   // 加载编辑器
   function loadSimpleMDE() {
+ 
     const cssLink = document.createElement('link');
     cssLink.rel = 'stylesheet';
     cssLink.href = 'https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.css';
@@ -249,6 +251,7 @@
         }
       }
     }
+    simplemde.codemirror.refresh();
   }
 
   // 保存博客

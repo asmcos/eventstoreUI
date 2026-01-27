@@ -346,6 +346,9 @@
 
 <svelte:head>
   <title>esbook - 博客文章编辑</title>
+  <link rel="stylesheet" href="/lib/simplemde/simplemde.min.css">
+  <script src="/lib/simplemde/simplemde.min.js"></script>
+
 </svelte:head>
 
 <!-- 主容器 -->

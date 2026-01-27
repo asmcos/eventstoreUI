@@ -7,5 +7,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     books: locals.books, // 
     blogs: locals.blogs, //
     users_profile:locals.users_profile,  
+    browselogs:locals.browselogs,
   };
 };
