@@ -870,7 +870,7 @@ async function fetchUsersByPage(page = null, ops = 0) {
                 <thead class="bg-gray-50">
                   <tr>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ESec Public Key</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Public Key</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                     <!--th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th-->
                     <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -890,7 +890,7 @@ async function fetchUsersByPage(page = null, ops = 0) {
                       </div>
                     </td>
                     <td class="px-6 py-4">
-                      <div class="text-sm text-gray-600">{user.pubkey}</div>
+                      <div class="text-sm text-gray-600">{user.pubkey?.substring(1,10)}...{user.pubkey?.substring(50,64)}</div>
                     </td>
                     <td class="px-6 py-4">
                       <span class="role-badge bg-primary/10 text-primary">{getPerm(permissions,user.pubkey)}</span>
@@ -1032,7 +1032,7 @@ async function fetchUsersByPage(page = null, ops = 0) {
                             <i class="fa {event.icon.iconClass} {event.icon.textClass}"></i>
                           </div>
                           <div class="ml-4">
-                            <div class="text-sm font-medium text-gray-900">{JSON.stringify(event.data).substring(0, 20)}</div>
+                            <div class="text-sm font-medium text-gray-900">{JSON.stringify(event.data)?.substring(0, 20)}</div>
                             <div class="text-sm text-gray-500"> </div>
                           </div>
                         </div>
@@ -1043,11 +1043,11 @@ async function fetchUsersByPage(page = null, ops = 0) {
                       </td>
                       <td class="px-6 py-4">
                        
-                        <div class="text-sm text-gray-500">{event.user.substring(0,10)}...{event.user.substring(54)}</div>
+                        <div class="text-sm text-gray-500">{event.user?.substring(0,10)}...{event.user?.substring(54)}</div>
                       </td>
                       <td class="px-6 py-4">
-                        <div class="text-sm text-gray-900">{event.servertimestamp.split("T")[0]}</div>
-                        <div class="text-sm text-gray-500">{event.servertimestamp.split("T")[1]}</div>
+                        <div class="text-sm text-gray-900">{event.servertimestamp?.split("T")[0]}</div>
+                        <div class="text-sm text-gray-500">{event.servertimestamp?.split("T")[1]}</div>
                       </td>
                       <td class="px-6 py-4">
                          {event.status !=1 ? "open":"hidded"}
