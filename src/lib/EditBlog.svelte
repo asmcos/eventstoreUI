@@ -284,7 +284,7 @@
         }  
 
       } catch (error) {
-        showNotification("封面处理出错", 2000, "error");
+        showNotification("封面处理出错", 3000, "error");
         return;
       }
     }
@@ -295,14 +295,19 @@
     blogData.isPublished = isPublish;
     blogData.updatedAt = new Date().toISOString();
     create_blog(JSON.stringify(blogData), Keypub, Keypriv, (message) => {
-      if (message.code === 201 && !blogId) blogId = message.id ;
-      
+      if (message.code === 201) {
+        if (!blogId) {
+          blogId = message.id ; 
+        }
+        return ;
+      }
+       
       if (message.code === 200) {
-        showNotification(isPublish ? "文章发布成功" : "草稿保存成功", 2000, "success");
+        showNotification(isPublish ? "文章发布成功" : "草稿保存成功", 3000, "success");
         blogData.id = blogId;
         onSaveSuccess(blogData);
       } else {
-        showNotification("保存失败", 2000, "error");
+        showNotification("保存失败", 3000, "error");
       }
     });
   }
