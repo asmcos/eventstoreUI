@@ -22,6 +22,9 @@ export async function createRenderer(
   md.renderer.rules.fence = function(tokens, idx, options, env, self) {
     const token = tokens[idx]
     const info = token.info ? md.utils.unescapeAll(token.info).trim() : ''
+    const code = token.content.trim(); // 获取代码内容
+    const lines = code.split('\n').length;
+
     let langName = ''
     let langAttrs = ''
   
@@ -42,6 +45,18 @@ export async function createRenderer(
     } else {
       highlighted = md.utils.escapeHtml(token.content)
     }
+
+    if (lines <= 3) {       
+      return `<div class="code-block">      
+          <div class="code-header">        
+            <span>${langName}</span>
+            <button class="copy-btn" onclick="copyCode(this)">复制</button> 
+          </div>
+        ${highlighted}
+              
+      </div>`;
+    }
+
     return `
     <div class="code-block">
       <div class="code-header">         
