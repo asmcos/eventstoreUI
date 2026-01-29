@@ -179,7 +179,6 @@
                 <option>最新上架</option>
               </select>
               <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                <i class="fa fa-chevron-down text-xs"></i>
               </div>
             </div>
           </div>
