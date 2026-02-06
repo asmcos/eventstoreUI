@@ -1,4 +1,4 @@
-import { get_blog_id, get_blog_shortid,get_user_profile } from "$lib/esclient";
+import { get_blog_id, get_blog_shortid, get_user_profile, get_browselog_count } from "$lib/esclient";
 import {createRenderer} from "$lib/render";
 
 
@@ -45,6 +45,25 @@ function getBlogIdPromise(blogId,s_userid,s_blogid) {
   });
 }
 
+function getBrowselogsPromise(ids) {
+  return new Promise((resolve) => {
+    const Logs = {};
+    if (ids.length === 0) {
+      resolve(Logs);
+      return;
+    }
+    get_browselog_count(ids, (message) => {
+      if (message === "EOSE") {
+        resolve(Logs);
+      } else if (message && message.code == 200) {
+        (message.counts || []).forEach(count => {
+          Logs[count.targetId] = count.count;
+        });
+      }
+    });
+  });
+}
+
 function getUserProfilePromise(pubkey) {
   return new Promise((resolve) => {
     get_user_profile(pubkey, (msg) => {
@@ -70,8 +89,10 @@ export async function load({ url }) {
       blogId = null;
    }  else if (!blogId) {
       return {
+        blogId: null,
         blogData: null,
         userProfile: null,
+        browseCount: 0,
         error: '缺少博客ID参数'
       };
     }
@@ -91,10 +112,15 @@ export async function load({ url }) {
     // 2. 预取作者信息
     const userProfile = userPubkey ? await getUserProfilePromise(userPubkey) : null;
 
+    // 3. 预取浏览数
+    const browselogs = await getBrowselogsPromise([blogId]);
+    const browseCount = browselogs[blogId] ?? 0;
+
     return {
       blogId,
       blogData,
       userProfile,
+      browseCount,
       error: null
     };
   } catch (error) {
@@ -103,6 +129,7 @@ export async function load({ url }) {
       blogId: url.searchParams.get('blogid') || '',
       blogData: null,
       userProfile: null,
+      browseCount: 0,
       error: error.message || '加载博客内容失败'
     };
   }

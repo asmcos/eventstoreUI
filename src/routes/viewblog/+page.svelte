@@ -28,7 +28,7 @@
   ];
   
   export let data;
-  const { blogId, blogData, userProfile, error } = data;
+  const { blogId, blogData, userProfile, browseCount = 0, error } = data;
 
   
 
@@ -205,6 +205,24 @@
 
 <style>
 :global {
+  /* 文章标题：黑粗大 + 仅标题美化（左侧竖线、下划线） */
+  .blog-article-title {
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    padding-left: 1rem;
+    border-left: 4px solid #4f46e5;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  @media (min-width: 768px) {
+    .blog-article-title {
+      font-size: 1.85rem;
+    }
+  }
+
   /* 原有样式保持不变 */
   .blog-content p {
     margin-bottom: 1.5rem;
@@ -808,28 +826,28 @@
           >
         </div>
         <div>
-          <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">{blogData.title || '无标题'}</h1>
-          <div class="flex flex-wrap items-center gap-4 text-gray-600">
+          <h1 class="blog-article-title mb-6">{blogData.title || '无标题'}</h1>
+          <div class="space-y-2 mb-4 mt-2">
             <div class="flex items-center">
               <img 
                 src={user_profile?.avatarUrl ? `${uploadpath}${user_profile.avatarUrl}` : 'https://picsum.photos/seed/author/100/100'} 
                 alt={user_profile?.displayName || '作者头像'} 
-                class="w-8 h-8 rounded-full mr-2"
+                class="w-8 h-8 rounded-full flex-shrink-0"
               >
-              <span>{user_profile?.displayName || '未知作者'}</span>
+              <span class="text-gray-700 ml-2">{user_profile?.displayName || '未知作者'}</span>
             </div>
             <div class="flex items-center">
-              <i class="far fa-calendar mr-2"></i>
-              <span>
+              <i class="fa fa-calendar-o w-6 text-blue-400"></i>
+              <span class="text-gray-700 ml-2">
                 {blogData.servertimestamp 
-                  ? new Date(blogData.servertimestamp).toLocaleDateString('zh-CN', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })
+                  ? blogData.servertimestamp.split('T')[0]
                   : '未知日期'
                 }
               </span>
+            </div>
+            <div class="flex items-center">
+              <i class="fa fa-eye w-6 text-green-400"></i>
+              <span class="text-gray-700 ml-2">{browseCount} 次</span>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { get_blogs, get_users_profile,blog_counts } from "$lib/esclient";
+import { get_blogs, get_users_profile, blog_counts, get_browselog_count } from "$lib/esclient";
 
 let cachedBlogs = [];
 let users_profile = {};
@@ -55,6 +55,27 @@ function getUsersProfilePromise(pubkeys) {
   });
 }
 
+function getBrowselogsPromise(ids) {
+  return new Promise((resolve) => {
+    const Logs = {};
+    if (ids.length === 0) {
+      resolve(Logs);
+      return;
+    }
+    get_browselog_count(ids, (message) => {
+      if (message === "EOSE") {
+        resolve(Logs);
+      } else if (message) {
+        if (message.code == 200) {
+          message.counts.map(count => {
+            Logs[count.targetId] = count.count;
+          });
+        }
+      }
+    });
+  });
+}
+
 function getTotalPages(){
   return new Promise((resolve) => {
     blog_counts("",(message) =>{
@@ -85,13 +106,16 @@ export async function load({ url }) {
 
   const newProfiles = await getUsersProfilePromise(userPubkeys);
   const totalPages  = await getTotalPages();
+
+  const ids = blogsResult.blogs.map(b => b.id);
+  const browselogs = ids.length ? await getBrowselogsPromise(ids) : {};
   
   return {
-    // 可根据需要返回数据，例如：
-     blogs: blogsResult.blogs,
-     users_profile: newProfiles,
-     currentPage:currentPage,
-     totalPages:totalPages,
+    blogs: blogsResult.blogs,
+    users_profile: newProfiles,
+    currentPage: currentPage,
+    totalPages: totalPages,
+    browselogs,
   };
 }
 

@@ -10,7 +10,7 @@
   import { goto } from '$app/navigation';
 
   export let data;
-  const { blogs, users_profile, currentPage = 1, totalPages = 10, totalBlogs = 0 } = data;
+  const { blogs, users_profile, currentPage = 1, totalPages = 10, totalBlogs = 0, browselogs = {} } = data;
   
   // 从URL参数获取当前页码
   let currentPageNumber ;
@@ -268,10 +268,15 @@
                 <h3 class="font-semibold text-xl mb-2 hover:text-blue-600 transition-colors duration-200">
                   <a href="/viewblog?blogid={getShortBlogId(blog)}">{blog.data.title}</a>
                 </h3>
-                <div class="flex items-center text-sm text-gray-500 mb-2">
-                  <span class="flex items-center mr-3">
-                    <i class="fa fa-calendar-o mr-1"></i>{blog.servertimestamp.split("T")[0]}
-                  </span>
+                <div class="space-y-2 mb-3">
+                  <div class="flex items-center">
+                    <i class="fa fa-calendar-o w-6 text-blue-400"></i>
+                    <span class="text-gray-700 ml-2">{blog.servertimestamp.split("T")[0]}</span>
+                  </div>
+                  <div class="flex items-center">
+                    <i class="fa fa-eye w-6 text-green-400"></i>
+                    <span class="text-gray-700 ml-2">{browselogs[blog.id] || 0} 次</span>
+                  </div>
                 </div>
               </div>
             </div>
