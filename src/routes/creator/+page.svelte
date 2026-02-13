@@ -419,7 +419,7 @@
               </a>
               
               <div class="ml-4">
-                <a href="/editbook?bookid={book.id}"><h3 class="font-bold text-gray-800">{book.data.title}</h3></a>
+                <a href="/editbook?bookid={book.id}"><h3 class="font-bold text-gray-800">{book.data.title}</h3>
                 <div class="flex items-center mt-1 text-sm text-gray-500">
                   <span>{book.labels && book.labels.length > 0 ? book.labels[0] : '未分类'}</span>
                   <span class="mx-2">|</span>
@@ -428,6 +428,7 @@
                 <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
                   <div class="bg-green-500 h-2 rounded-full" style="width: 100%"></div>
                 </div>
+                </a>
               </div>
             </div>
           </div>
