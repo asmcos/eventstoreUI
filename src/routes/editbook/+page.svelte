@@ -1356,6 +1356,8 @@
 
 <svelte:head>
     <title> 创作书籍</title>
+    <link rel="stylesheet" href="/lib/simplemde/simplemde.min.css">
+    <script src="/lib/simplemde/simplemde.min.js"></script>
 </svelte:head>
 
 <main class="flex-grow flex flex-col max-w-7xl mx-auto px-4 py-6 w-full">
