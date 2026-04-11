@@ -394,7 +394,7 @@
     <div class="max-w-7xl mx-auto flex justify-between items-center">
         <div class="flex items-center space-x-2">
             <i class="fas fa-book-open text-primary text-2xl"></i>
-            <span class="text-xl font-bold">esBooks</span>
+            <span class="text-xl font-bold">辰龙机器人操作系统</span>
         </div>
       
         <!-- 桌面导航 -->
@@ -532,7 +532,7 @@
         </div>
       
         <div class="pt-8 border-t border-slate-700 text-center text-slate-500">
-            <p>© 2025 esBooks 电子书平台. 保留所有权利。</p>
+            <p>© 2004-2026 辰龙机器人操作系统 北京亚嵌科技 电子书平台. 保留所有权利。</p>
         </div>
     </div>
 </footer>
