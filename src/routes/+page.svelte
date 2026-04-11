@@ -243,7 +243,7 @@
         </div>
 
         <div class="mt-12 text-center">
-          <a href="#" class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-900 font-medium rounded-lg hover:bg-gray-50 transition-all duration-200">
+          <a href="/viewbooks" class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-900 font-medium rounded-lg hover:bg-gray-50 transition-all duration-200">
             查看更多书籍
             <i class="fa fa-arrow-right ml-2"></i>
           </a>
