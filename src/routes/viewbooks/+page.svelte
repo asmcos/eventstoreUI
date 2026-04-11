@@ -113,7 +113,7 @@
 </script>
 
 <svelte:head>
-    <title>esBooks | 探索无限知识世界</title>
+    <title>辰龙机器人操作 | 探索无限知识世界</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </svelte:head>
