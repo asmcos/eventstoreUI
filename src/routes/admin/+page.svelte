@@ -7,6 +7,7 @@
     add_permission,
     delete_user,
     delete_event,
+    restore_event,
     user_counts,
     event_counts,
   } from '$lib/esclient';
@@ -42,8 +43,13 @@
   let events      = [];
   let eventTotal = 0;
 
-  /** All | Pending | Published | Rejected | Hidden（本页删除后仅 UI 隐藏） */
+  /** All | Pending | Published | Rejected | Hidden（status===1 服务端隐藏） */
   let eventListTab = 'all';
+
+  /** 与列表 Status 列一致：status==1 为 hidded（含数字 1 / 字符串 "1"） */
+  function isEventHiddenByStatus(e) {
+    return e?.status == 1;
+  }
 
   /** 导出/弹窗展示：去掉纯前端字段，避免污染 raw */
   function eventForJsonExport(ev) {
@@ -52,11 +58,9 @@
     return rest;
   }
 
-  /** 业务侧状态分桶（无字段时把非服务端 hidden 的归入 published） */
+  /** 业务侧状态分桶（服务端 status===1 为隐藏，不参与 published） */
   function eventWorkflowBucket(e) {
-    if (e?._adminUiHidden) return 'hidden';
-    const ns = Number(e?.status);
-    if (ns === 1) return 'serverhidden';
+    if (e?.status == 1) return 'serverhidden';
     try {
       const d = typeof e.data === 'string' ? JSON.parse(e.data) : e?.data;
       const s = d?.approvalStatus ?? d?.state ?? d?.publishStatus;
@@ -71,8 +75,10 @@
 
   $: filteredEvents = (() => {
     const list = events;
+    // All：整页列表不做状态过滤，必须包含 status==1（hidded）在内
     if (eventListTab === 'all') return list;
-    if (eventListTab === 'hidden') return list.filter((e) => e._adminUiHidden);
+    // Hidden：仅 status==1
+    if (eventListTab === 'hidden') return list.filter((e) => isEventHiddenByStatus(e));
     if (eventListTab === 'pending') return list.filter((e) => eventWorkflowBucket(e) === 'pending');
     if (eventListTab === 'published') return list.filter((e) => eventWorkflowBucket(e) === 'published');
     if (eventListTab === 'rejected') return list.filter((e) => eventWorkflowBucket(e) === 'rejected');
@@ -124,10 +130,16 @@
     }
   }
 
-  function restoreAdminHiddenEvent(ev) {
-    ev._adminUiHidden = false;
-    events = [...events];
-    showToastMessage('已恢复显示', 'success');
+  function restoreEventFromServer(ev) {
+    const adminpubkey = Keypub;
+    const adminprivkey = Keypriv;
+    restore_event(ev, adminpubkey, adminprivkey, function (message) {
+      showToastMessage(message.message || '操作完成', message.code == 200 ? 'success' : 'error');
+      if (message.code == 200) {
+        ev.status = 0;
+        events = [...events];
+      }
+    });
   }
   let userTotal = 0;
   let users       = [];
@@ -201,7 +213,7 @@
     delete_event(EventId, adminpubkey, adminprivkey, function (message) {
       showToastMessage(message.message);
       if (message.code == 200) {
-        ev._adminUiHidden = true;
+        ev.status = 1;
         events = [...events];
       }
     });
@@ -1101,12 +1113,12 @@ async function fetchUsersByPage(page = null, ops = 0) {
                 <button
                   type="button"
                   class="px-4 py-2 text-sm font-medium rounded-t {eventListTab === 'hidden' ? 'tab-active' : 'text-gray-600 hover:text-gray-900'}"
-                  title="本页删除成功、仅界面隐藏，可点恢复"
+                  title="status===1 的隐藏事件，恢复请用 restore_event"
                   on:click={() => (eventListTab = 'hidden')}
                 >
                   Hidden
-                  {#if events.some((e) => e._adminUiHidden)}
-                    <span class="ml-1 text-xs bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded-full">{events.filter((e) => e._adminUiHidden).length}</span>
+                  {#if events.some((e) => isEventHiddenByStatus(e))}
+                    <span class="ml-1 text-xs bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded-full">{events.filter((e) => isEventHiddenByStatus(e)).length}</span>
                   {/if}
                 </button>
               </div>
@@ -1146,7 +1158,7 @@ async function fetchUsersByPage(page = null, ops = 0) {
                   <tbody class="bg-white divide-y divide-gray-200">
 
                    {#each filteredEvents as event (event.id)}
-                    <tr class="hover:bg-gray-50 transition-colors {event._adminUiHidden ? 'bg-amber-50/60' : ''}">
+                    <tr class="hover:bg-gray-50 transition-colors {isEventHiddenByStatus(event) ? 'bg-amber-50/60' : ''}">
                       <td class="px-6 py-4">
                         <button
                           type="button"
@@ -1160,8 +1172,8 @@ async function fetchUsersByPage(page = null, ops = 0) {
                           <div class="min-w-0 flex-1">
                             <div class="text-sm font-medium text-gray-900 truncate">{JSON.stringify(event.data)?.substring(0, 36)}</div>
                             <div class="text-xs text-primary">点击查看 JSON</div>
-                            {#if event._adminUiHidden}
-                              <span class="mt-1 inline-block text-xs bg-amber-200 text-amber-950 px-1.5 py-0.5 rounded">本页已删（可恢复）</span>
+                            {#if isEventHiddenByStatus(event)}
+                              <span class="mt-1 inline-block text-xs bg-amber-200 text-amber-950 px-1.5 py-0.5 rounded">status 隐藏（可恢复）</span>
                             {/if}
                           </div>
                         </button>
@@ -1184,12 +1196,12 @@ async function fetchUsersByPage(page = null, ops = 0) {
                    
                       <td class="px-6 py-4 text-right">
                         <div class="flex justify-end space-x-2">
-                          {#if event._adminUiHidden}
+                          {#if isEventHiddenByStatus(event)}
                             <button
                               type="button"
                               class="px-2 py-1 text-xs font-medium rounded-lg text-amber-900 bg-amber-100 hover:bg-amber-200 transition-colors"
-                              title="恢复在本页显示"
-                              on:click|stopPropagation={() => restoreAdminHiddenEvent(event)}
+                              title="调用 restore_event 恢复"
+                              on:click|stopPropagation={() => restoreEventFromServer(event)}
                             >
                               <i class="fa fa-undo mr-1"></i>恢复
                             </button>
@@ -1216,8 +1228,8 @@ async function fetchUsersByPage(page = null, ops = 0) {
                               type="button"
                               class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
                               aria-label="删除（本页隐藏，可恢复）"
-                              title="删除（本页隐藏，可恢复）"
-                              on:click|stopPropagation={() => deleteEvent(event)}
+                            title="删除（status 置为隐藏，可用恢复）"
+                            on:click|stopPropagation={() => deleteEvent(event)}
                             >
                               <i class="fa fa-trash-o"></i>
                             </button>
@@ -1229,7 +1241,7 @@ async function fetchUsersByPage(page = null, ops = 0) {
                     {:else}
                       <tr>
                         <td colspan="6" class="px-6 py-10 text-center text-sm text-gray-500">
-                          当前标签下没有事件。Hidden 中可查看本页删除后仅隐藏的记录。
+                          当前标签下没有事件。Hidden 中为 status 隐藏（hidded）的记录。
                         </td>
                       </tr>
                     {/each}
@@ -1270,18 +1282,18 @@ async function fetchUsersByPage(page = null, ops = 0) {
 
         {#if showEventRawModal}
           <div
-            class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
+            class="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 pt-8 sm:pt-4 bg-black/50 overflow-y-auto"
             role="dialog"
             aria-modal="true"
             aria-labelledby="event-raw-title"
             on:click|self={closeEventRaw}
           >
             <div
-              class="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[85vh] flex flex-col border border-gray-200"
+              class="bg-white rounded-xl shadow-xl max-w-4xl w-full flex flex-col border border-gray-200 my-auto max-h-[min(92vh,900px)] min-h-0"
               on:click|stopPropagation
             >
-              <div class="flex items-center justify-between gap-4 px-4 py-3 border-b border-gray-200">
-                <h3 id="event-raw-title" class="text-lg font-semibold text-gray-900 truncate">{eventRawLabel}</h3>
+              <div class="flex items-center justify-between gap-4 px-4 py-3 border-b border-gray-200 shrink-0 bg-white rounded-t-xl">
+                <h3 id="event-raw-title" class="text-lg font-semibold text-gray-900 truncate min-w-0 pr-2">{eventRawLabel}</h3>
                 <div class="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
@@ -1292,7 +1304,7 @@ async function fetchUsersByPage(page = null, ops = 0) {
                   </button>
                   <button
                     type="button"
-                    class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+                    class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 border border-gray-200"
                     aria-label="关闭"
                     on:click={closeEventRaw}
                   >
@@ -1300,7 +1312,9 @@ async function fetchUsersByPage(page = null, ops = 0) {
                   </button>
                 </div>
               </div>
-              <pre class="flex-1 overflow-auto p-4 text-xs font-mono text-gray-800 bg-gray-50 m-0 rounded-b-xl">{eventRawJson}</pre>
+              <pre
+                class="block p-4 text-xs font-mono text-gray-800 bg-gray-50 m-0 rounded-b-xl overflow-y-auto overscroll-contain min-h-0 max-h-[min(70vh,640px)] whitespace-pre-wrap break-words"
+              >{eventRawJson}</pre>
             </div>
           </div>
         {/if}

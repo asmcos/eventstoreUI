@@ -198,6 +198,26 @@ function asyncPublish(client, sevent) {
   });
 }
 
+export async function restore_event(eventOrId, adminpubkey, adminprivkey, callback) {
+  await client.connect().catch((error) => {});
+
+  const eventid =
+    typeof eventOrId === 'string' ? eventOrId : eventOrId?.id ?? '';
+
+  const publishEvent = {
+    ops: 'D',
+    code: 202,
+    status: 0,
+    user: adminpubkey,
+    data: { eventid }
+  };
+
+  client.publish(secureEvent(publishEvent, adminprivkey), function (message) {
+    if (message[2] != 'EOSE') callback(message[2]);
+  });
+}
+
+
 export async function upload_file(filename,fileData,pubkey,privkey,callback){
   await client.connect().catch(error => {});
 
