@@ -40,17 +40,17 @@
     let selectedBook = null;
     let modalOpen = false;
     let scrolled = false;
-    let activeCategory = "文学小说";
+    let activeCategory = "科学技术";
    
     
-    // 分类筛选
+    // 分类筛选（科技 / 机器人 / 操作系统 / 社区 等）
     const categories = [
-        { name: "文学小说", icon: "book", color: "text-primary" },
-        { name: "科技前沿", icon: "laptop-code", color: "text-green-400" },
-        { name: "商业经济", icon: "chart-line", color: "text-yellow-400" },
-        { name: "健康生活", icon: "heartbeat", color: "text-red-400" },
-        { name: "学习成长", icon: "graduation-cap", color: "text-purple-400" },
-        { name: "儿童读物", icon: "child", color: "text-blue-400" }
+        { name: "科学技术", icon: "microchip", color: "text-cyan-400" },
+        { name: "机器人", icon: "robot", color: "text-blue-400" },
+        { name: "操作系统", icon: "desktop", color: "text-primary" },
+        { name: "开发者社区", icon: "users", color: "text-green-400" },
+        { name: "人工智能", icon: "brain", color: "text-purple-400" },
+        { name: "开源与工具", icon: "code-branch", color: "text-yellow-400" }
     ];
     
     // 生成评分星星
@@ -113,7 +113,7 @@
 </script>
 
 <svelte:head>
-    <title>esBooks | 探索无限知识世界</title>
+    <title>辰龙机器人操作 | 探索无限知识世界</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </svelte:head>
@@ -394,7 +394,7 @@
     <div class="max-w-7xl mx-auto flex justify-between items-center">
         <div class="flex items-center space-x-2">
             <i class="fas fa-book-open text-primary text-2xl"></i>
-            <span class="text-xl font-bold">esBooks</span>
+            <span class="text-xl font-bold">辰龙机器人操作系统</span>
         </div>
       
         <!-- 桌面导航 -->
@@ -532,7 +532,7 @@
         </div>
       
         <div class="pt-8 border-t border-slate-700 text-center text-slate-500">
-            <p>© 2025 esBooks 电子书平台. 保留所有权利。</p>
+            <p>© 2004-2026 辰龙机器人操作系统 北京亚嵌科技 电子书平台. 保留所有权利。</p>
         </div>
     </div>
 </footer>
