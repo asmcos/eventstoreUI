@@ -15,7 +15,6 @@
   import {getKey} from "$lib/getkey";
   import {getColorClass,getUserName} from "$lib/users";
   import {getPerm } from "$lib/permissions";
-  import {selectRandomIcon} from "$lib/events";
 
   import EditDialog from "$lib/editdialog.svelte";
   import {PERMISSIONS} from "eventstore-tools/src/common";
@@ -42,6 +41,94 @@
 
   let events      = [];
   let eventTotal = 0;
+
+  /** All | Pending | Published | Rejected | Hidden（本页删除后仅 UI 隐藏） */
+  let eventListTab = 'all';
+
+  /** 导出/弹窗展示：去掉纯前端字段，避免污染 raw */
+  function eventForJsonExport(ev) {
+    if (!ev || typeof ev !== 'object') return ev;
+    const { icon: _icon, _adminUiHidden: _hid, ...rest } = ev;
+    return rest;
+  }
+
+  /** 业务侧状态分桶（无字段时把非服务端 hidden 的归入 published） */
+  function eventWorkflowBucket(e) {
+    if (e?._adminUiHidden) return 'hidden';
+    const ns = Number(e?.status);
+    if (ns === 1) return 'serverhidden';
+    try {
+      const d = typeof e.data === 'string' ? JSON.parse(e.data) : e?.data;
+      const s = d?.approvalStatus ?? d?.state ?? d?.publishStatus;
+      if (s === 'pending' || s === 'draft') return 'pending';
+      if (s === 'rejected' || s === 'failed') return 'rejected';
+      if (s === 'published' || s === 'approved' || s === true) return 'published';
+    } catch (_) {
+      /* ignore */
+    }
+    return 'published';
+  }
+
+  $: filteredEvents = (() => {
+    const list = events;
+    if (eventListTab === 'all') return list;
+    if (eventListTab === 'hidden') return list.filter((e) => e._adminUiHidden);
+    if (eventListTab === 'pending') return list.filter((e) => eventWorkflowBucket(e) === 'pending');
+    if (eventListTab === 'published') return list.filter((e) => eventWorkflowBucket(e) === 'published');
+    if (eventListTab === 'rejected') return list.filter((e) => eventWorkflowBucket(e) === 'rejected');
+    return list;
+  })();
+
+  /** 查看完整 event 原始数据 */
+  let showEventRawModal = false;
+  let eventRawJson = '';
+  let eventRawLabel = '';
+
+  function openEventRaw(event) {
+    try {
+      eventRawJson = JSON.stringify(eventForJsonExport(event), null, 2);
+    } catch (e) {
+      eventRawJson = String(event);
+    }
+    eventRawLabel = event?.id ? `Event ${event.id}` : 'Event';
+    showEventRawModal = true;
+  }
+
+  function closeEventRaw() {
+    showEventRawModal = false;
+    eventRawJson = '';
+    eventRawLabel = '';
+  }
+
+  async function copyEventRaw() {
+    try {
+      await navigator.clipboard.writeText(eventRawJson);
+      showToastMessage('已复制到剪贴板', 'success');
+    } catch {
+      showToastMessage('复制失败', 'error');
+    }
+  }
+
+  async function copyEventJson(event) {
+    let text;
+    try {
+      text = JSON.stringify(eventForJsonExport(event), null, 2);
+    } catch {
+      text = String(event);
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToastMessage('已复制完整 JSON', 'success');
+    } catch {
+      showToastMessage('复制失败', 'error');
+    }
+  }
+
+  function restoreAdminHiddenEvent(ev) {
+    ev._adminUiHidden = false;
+    events = [...events];
+    showToastMessage('已恢复显示', 'success');
+  }
   let userTotal = 0;
   let users       = [];
   let permissions = [];
@@ -67,13 +154,10 @@
     }, 3000);
   }
 
-  function handle_events(e){
-    let temp = events;
-    e.icon = selectRandomIcon();
-    temp.push(e)
-
+  function handle_events(e) {
+    const temp = events;
+    temp.push(e);
     events = [...temp];
-  
   }
 
 
@@ -110,16 +194,15 @@
     });
   }
 
-  function deleteEvent (EventId){
-    let adminpubkey = Keypub;
-    let adminprivkey = Keypriv;
-    delete_event(EventId,adminpubkey,adminprivkey,function(message) {
-      
+  function deleteEvent(ev) {
+    const EventId = ev.id;
+    const adminpubkey = Keypub;
+    const adminprivkey = Keypriv;
+    delete_event(EventId, adminpubkey, adminprivkey, function (message) {
       showToastMessage(message.message);
-      if (message.code == 200){
-          setTimeout(() => {
-             window.location.reload();
-          }, 1000);
+      if (message.code == 200) {
+        ev._adminUiHidden = true;
+        events = [...events];
       }
     });
   }
@@ -981,13 +1064,51 @@ async function fetchUsersByPage(page = null, ops = 0) {
               </div>
             </div>
             
-            <!-- 事件筛选 -->
+            <!-- 事件筛选：All 含本页 UI 隐藏；Hidden 仅本页删除待恢复 -->
             <div class="flex flex-wrap items-center justify-between mb-6 gap-4 bg-white p-4 rounded-xl shadow-sm">
-              <div class="flex space-x-2">
-                <button class="tab-active px-4 py-2 text-sm font-medium">All Events</button>
-                <button class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Pending</button>
-                <button class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Published</button>
-                <button class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Rejected</button>
+              <div class="flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  class="px-4 py-2 text-sm font-medium rounded-t {eventListTab === 'all' ? 'tab-active' : 'text-gray-600 hover:text-gray-900'}"
+                  on:click={() => (eventListTab = 'all')}
+                >
+                  All Events
+                </button>
+                <button
+                  type="button"
+                  class="px-4 py-2 text-sm font-medium rounded-t {eventListTab === 'pending' ? 'tab-active' : 'text-gray-600 hover:text-gray-900'}"
+                  title="data 内 approvalStatus/state 为 pending/draft"
+                  on:click={() => (eventListTab = 'pending')}
+                >
+                  Pending
+                </button>
+                <button
+                  type="button"
+                  class="px-4 py-2 text-sm font-medium rounded-t {eventListTab === 'published' ? 'tab-active' : 'text-gray-600 hover:text-gray-900'}"
+                  title="已发布或未标为 pending/rejected 的可见事件"
+                  on:click={() => (eventListTab = 'published')}
+                >
+                  Published
+                </button>
+                <button
+                  type="button"
+                  class="px-4 py-2 text-sm font-medium rounded-t {eventListTab === 'rejected' ? 'tab-active' : 'text-gray-600 hover:text-gray-900'}"
+                  title="data 内为 rejected/failed"
+                  on:click={() => (eventListTab = 'rejected')}
+                >
+                  Rejected
+                </button>
+                <button
+                  type="button"
+                  class="px-4 py-2 text-sm font-medium rounded-t {eventListTab === 'hidden' ? 'tab-active' : 'text-gray-600 hover:text-gray-900'}"
+                  title="本页删除成功、仅界面隐藏，可点恢复"
+                  on:click={() => (eventListTab = 'hidden')}
+                >
+                  Hidden
+                  {#if events.some((e) => e._adminUiHidden)}
+                    <span class="ml-1 text-xs bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded-full">{events.filter((e) => e._adminUiHidden).length}</span>
+                  {/if}
+                </button>
               </div>
               
               <div class="flex space-x-3">
@@ -1024,18 +1145,26 @@ async function fetchUsersByPage(page = null, ops = 0) {
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
 
-                   {#each events as event }
-                    <tr class="hover:bg-gray-50 transition-colors">
+                   {#each filteredEvents as event (event.id)}
+                    <tr class="hover:bg-gray-50 transition-colors {event._adminUiHidden ? 'bg-amber-50/60' : ''}">
                       <td class="px-6 py-4">
-                        <div class="flex items-center">
-                          <div class="flex-shrink-0 w-10 h-10 rounded-md {event.icon.bgClass} flex items-center justify-center">
-                            <i class="fa {event.icon.iconClass} {event.icon.textClass}"></i>
+                        <button
+                          type="button"
+                          class="flex items-center text-left w-full rounded-lg -m-1 p-1 hover:bg-gray-100 transition-colors cursor-pointer gap-3"
+                          on:click={() => openEventRaw(event)}
+                          title="点击查看完整 raw 数据（不含前端 icon）"
+                        >
+                          <span class="flex-shrink-0 w-10 h-10 rounded-md bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-mono font-semibold border border-gray-200">
+                            {event.code ?? '—'}
+                          </span>
+                          <div class="min-w-0 flex-1">
+                            <div class="text-sm font-medium text-gray-900 truncate">{JSON.stringify(event.data)?.substring(0, 36)}</div>
+                            <div class="text-xs text-primary">点击查看 JSON</div>
+                            {#if event._adminUiHidden}
+                              <span class="mt-1 inline-block text-xs bg-amber-200 text-amber-950 px-1.5 py-0.5 rounded">本页已删（可恢复）</span>
+                            {/if}
                           </div>
-                          <div class="ml-4">
-                            <div class="text-sm font-medium text-gray-900">{JSON.stringify(event.data)?.substring(0, 20)}</div>
-                            <div class="text-sm text-gray-500"> </div>
-                          </div>
-                        </div>
+                        </button>
                       </td>
                       <td class="px-6 py-4">
                        {event.code}
@@ -1055,23 +1184,55 @@ async function fetchUsersByPage(page = null, ops = 0) {
                    
                       <td class="px-6 py-4 text-right">
                         <div class="flex justify-end space-x-2">
-                          <button class="w-8 h-8 flex items-center justify-center rounded-lg text-primary hover:bg-primary/10 transition-colors" aria-label="b">
-                            <i class="fa fa-eye"></i>
-                          </button>
-                          <button class="w-8 h-8 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-100 transition-colors" aria-label="b">
-                            <i class="fa fa-check"></i>
-                          </button>
-                          <button class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 transition-colors" on:click={deleteEvent(event.id)} aria-label="b">
-                            <i class="fa fa-trash-o"></i>
-                          </button>
+                          {#if event._adminUiHidden}
+                            <button
+                              type="button"
+                              class="px-2 py-1 text-xs font-medium rounded-lg text-amber-900 bg-amber-100 hover:bg-amber-200 transition-colors"
+                              title="恢复在本页显示"
+                              on:click|stopPropagation={() => restoreAdminHiddenEvent(event)}
+                            >
+                              <i class="fa fa-undo mr-1"></i>恢复
+                            </button>
+                          {:else}
+                            <button
+                              type="button"
+                              class="w-8 h-8 flex items-center justify-center rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                              aria-label="查看完整 raw"
+                              title="查看完整 raw"
+                              on:click|stopPropagation={() => openEventRaw(event)}
+                            >
+                              <i class="fa fa-eye"></i>
+                            </button>
+                            <button
+                              type="button"
+                              class="w-8 h-8 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-100 transition-colors"
+                              aria-label="复制 raw JSON"
+                              title="复制完整 raw JSON（不含前端字段）"
+                              on:click|stopPropagation={() => copyEventJson(event)}
+                            >
+                              <i class="fa fa-check"></i>
+                            </button>
+                            <button
+                              type="button"
+                              class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                              aria-label="删除（本页隐藏，可恢复）"
+                              title="删除（本页隐藏，可恢复）"
+                              on:click|stopPropagation={() => deleteEvent(event)}
+                            >
+                              <i class="fa fa-trash-o"></i>
+                            </button>
+                          {/if}
                         </div>
                       </td>
                     </tr>
                     
+                    {:else}
+                      <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-sm text-gray-500">
+                          当前标签下没有事件。Hidden 中可查看本页删除后仅隐藏的记录。
+                        </td>
+                      </tr>
                     {/each}
-           
-                    
-                    
                   </tbody>
                 </table>
               </div>
@@ -1106,6 +1267,43 @@ async function fetchUsersByPage(page = null, ops = 0) {
             </div>
           </div>
         </div>
+
+        {#if showEventRawModal}
+          <div
+            class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="event-raw-title"
+            on:click|self={closeEventRaw}
+          >
+            <div
+              class="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[85vh] flex flex-col border border-gray-200"
+              on:click|stopPropagation
+            >
+              <div class="flex items-center justify-between gap-4 px-4 py-3 border-b border-gray-200">
+                <h3 id="event-raw-title" class="text-lg font-semibold text-gray-900 truncate">{eventRawLabel}</h3>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    class="px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-white hover:opacity-90"
+                    on:click={copyEventRaw}
+                  >
+                    复制
+                  </button>
+                  <button
+                    type="button"
+                    class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+                    aria-label="关闭"
+                    on:click={closeEventRaw}
+                  >
+                    <i class="fa fa-times"></i>
+                  </button>
+                </div>
+              </div>
+              <pre class="flex-1 overflow-auto p-4 text-xs font-mono text-gray-800 bg-gray-50 m-0 rounded-b-xl">{eventRawJson}</pre>
+            </div>
+          </div>
+        {/if}
         
         <!-- Permissions 列表页面 -->
         <div id="permissionsSection" class="hidden">
